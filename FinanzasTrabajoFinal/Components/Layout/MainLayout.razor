@@ -1,0 +1,80 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@using FinanzasTrabajoFinal.Service
+@inject UserStateService UserStateService
+
+
+<div class="page">
+    <header class="app-header" style="height:@headerHeightPx">
+        <NavMenu />
+    </header>
+
+    <main class="main-content" style="padding-top:@headerHeightPx">
+        <article class="content-container px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<style>
+
+    /* (CSS de MainLayout) */
+    header.app-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1030;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        background: linear-gradient(90deg,#1877f2,#0d66d0);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    /* ... (El resto del CSS se queda igual) ... */
+
+    .main-content {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--bs-body-bg);
+    }
+
+    .content-container {
+        flex-grow: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* centra horizontalmente */
+        justify-content: flex-start;
+        padding: 1.5rem;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    @@media (max-width:767px) {
+        header .app-header {
+            height: 48px;
+        }
+    }
+</style>
+
+@code {
+    private readonly string headerHeightPx = "64px";
+
+    protected override void OnInitialized()
+    {
+        UserStateService.OnChange += HandleUserStateChange;
+    }
+
+    private async void HandleUserStateChange()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        UserStateService.OnChange -= HandleUserStateChange;
+    }
+}

@@ -1,0 +1,112 @@
+﻿@page "/register"
+@rendermode InteractiveServer
+
+@inject UserStateService UserStateService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<div class="card shadow-lg" style="width: 24rem; border-radius: 1rem;">
+    <div class="card-header bg-success text-white text-center p-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+        <h3 class="mb-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-person-plus-fill me-2" viewBox="0 0 16 16">
+                <path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zM11 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6" />
+                <path fill-rule="evenodd" d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5" />
+            </svg>
+            Crear Cuenta
+        </h3>
+    </div>
+    <div class="card-body p-4">
+        <EditForm Model="registerModel" OnValidSubmit="HandleRegister" FormName="RegisterForm">
+            <DataAnnotationsValidator />
+
+            <div class="form-floating mb-3">
+                <InputText id="nombreUsuario" @bind-Value="registerModel.NombreUsuario" class="form-control" placeholder="Usuario" />
+                <label for="nombreUsuario">Usuario</label>
+                <ValidationMessage For="@(() => registerModel.NombreUsuario)" class="text-danger" />
+            </div>
+
+            <div class="form-floating mb-3">
+                <InputText id="contrasena" @bind-Value="registerModel.Contrasena" type="password" class="form-control" placeholder="Contraseña" />
+                <label for="contrasena">Contraseña</label>
+                <ValidationMessage For="@(() => registerModel.Contrasena)" class="text-danger" />
+            </div>
+
+            <div class="form-floating mb-4">
+                <InputText id="confirmarContrasena" @bind-Value="registerModel.ConfirmarContrasena" type="password" class="form-control" placeholder="Confirmar Contraseña" />
+                <label for="confirmarContrasena">Confirmar Contraseña</label>
+                <ValidationMessage For="@(() => registerModel.ConfirmarContrasena)" class="text-danger" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">
+                    @errorMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success" role="alert">
+                    @successMessage
+                </div>
+            }
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-success btn-lg" disabled="@isProcessing">
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span class="visually-hidden">Loading...</span>
+                    }
+                    else
+                    {
+                        <span>Crear Cuenta</span>
+                    }
+                </button>
+            </div>
+        </EditForm>
+        <hr class="my-4">
+        <div class="text-center">
+            <p class="mb-0">¿Ya tienes una cuenta?</p>
+            <a href="login">Inicia sesión aquí</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterModel registerModel = new();
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isProcessing = false;
+
+    private async Task HandleRegister()
+    {
+        isProcessing = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var result = await AuthService.RegisterAsync(registerModel.NombreUsuario, registerModel.Contrasena);
+            if (result.Success)
+            {
+                successMessage = "¡Cuenta creada con éxito! Serás redirigido al login...";
+                await Task.Delay(2000); // Espera 2 segundos
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Ocurrió un error inesperado. Intente de nuevo.";
+            Console.WriteLine(ex.Message); // Log para depuración
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}

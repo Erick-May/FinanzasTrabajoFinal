@@ -1,0 +1,98 @@
+﻿@page "/login"
+@rendermode InteractiveServer
+@using FinanzasTrabajoFinal.Service
+@inject UserStateService UserStateService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<!--
+    ¡HEMOS QUITADO LAS CLASES DE CENTRADO DE AQUÍ!
+    Ahora el MainLayout.razor (content-container) se encarga.
+-->
+<div class="card shadow-lg" style="width: 24rem; border-radius: 1rem;">
+    <div class="card-header bg-primary text-white text-center p-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+        <h3 class="mb-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-bar-chart-line-fill me-2" viewBox="0 0 16 16">
+                <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1z" />
+            </svg>
+            Inicio de Sesión
+        </h3>
+    </div>
+    <div class="card-body p-4">
+        <EditForm Model="loginModel" OnValidSubmit="HandleLogin" FormName="LoginForm">
+            <DataAnnotationsValidator />
+
+            <div class="form-floating mb-3">
+                <InputText id="nombreUsuario" @bind-Value="loginModel.NombreUsuario" class="form-control" placeholder="Usuario" />
+                <label for="nombreUsuario">Usuario</label>
+                <ValidationMessage For="@(() => loginModel.NombreUsuario)" class="text-danger" />
+            </div>
+
+            <div class="form-floating mb-4">
+                <InputText id="contrasena" @bind-Value="loginModel.Contrasena" type="password" class="form-control" placeholder="Contraseña" />
+                <label for="contrasena">Contraseña</label>
+                <ValidationMessage For="@(() => loginModel.Contrasena)" class="text-danger" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">
+                    @errorMessage
+                </div>
+            }
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg" disabled="@isProcessing">
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span class="visually-hidden">Loading...</span>
+                    }
+                    else
+                    {
+                        <span>Entrar</span>
+                    }
+                </button>
+            </div>
+        </EditForm>
+        <hr class="my-4">
+        <div class="text-center">
+            <p class="mb-0">¿No tienes una cuenta?</p>
+            <a href="register">Regístrate aquí</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private string errorMessage = string.Empty;
+    private bool isProcessing = false;
+
+    private async Task HandleLogin()
+    {
+        isProcessing = true;
+        errorMessage = string.Empty;
+        try
+        {
+            var usuario = await AuthService.LoginAsync(loginModel.NombreUsuario, loginModel.Contrasena);
+            if (usuario != null)
+            {
+                UserStateService.LoginUser(usuario);
+                NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                errorMessage = "Credenciales incorrectas. Intenta de nuevo.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Ocurrió un error inesperado. Intente de nuevo.";
+            Console.WriteLine(ex.Message); // Log para depuración
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}

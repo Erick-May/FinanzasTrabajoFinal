@@ -1,0 +1,341 @@
+﻿@page "/upload"
+@rendermode InteractiveServer
+
+@using System.IO
+@using System.Data
+@using ExcelDataReader
+@using FinanzasTrabajoFinal.MODELS
+@using FinanzasTrabajoFinal.Service
+@using System.Globalization
+
+@inject FinanzasContext DbContext
+@inject UserStateService UserStateService
+@inject NavigationManager NavigationManager
+@inject ILogger<Upload> Logger
+
+<div class="card shadow-lg" style="width: 32rem; border-radius: 1rem;">
+    <div class="card-header bg-success text-white text-center p-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+        <h3 class="mb-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-file-earmark-arrow-up-fill me-2" viewBox="0 0 16 16">
+                <path d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 0.293A1 1 0 0 0 9.293 0M9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1M6.354 9.854a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L6 8.293l1.146-1.147a.5.5 0 0 1 .708.708z" />
+                <path d="M6 11.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5" />
+            </svg>
+            Nuevo Análisis Financiero
+        </h3>
+    </div>
+    <div class="card-body p-4">
+
+        <p class="text-muted">
+            Sube tu archivo de Excel (.xlsx) o CSV (.csv) con los Balances Generales y
+            Estados de Resultados para comenzar el análisis.
+        </p>
+
+        <EditForm Model="formModel" OnValidSubmit="HandleAnalysis" FormName="UploadForm">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label for="fileUpload" class="form-label">Seleccionar archivo:</label>
+                <InputFile id="fileUpload" class="form-control" OnChange="OnInputFileChange" accept=".xlsx, .csv" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(statusMessage))
+            {
+                <div class="alert alert-success" role="alert">
+                    @statusMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">
+                    @errorMessage
+                </div>
+            }
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-success btn-lg" disabled="@(isProcessing || selectedFile == null)">
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span class="visually-hidden">Procesando...</span>
+                    }
+                    else
+                    {
+                        <span>Procesar Análisis</span>
+                    }
+                </button>
+            </div>
+        </EditForm>
+        <hr class="my-4">
+        <div class="text-center">
+            <a href="/">Volver al inicio</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IBrowserFile? selectedFile;
+    private string statusMessage = "";
+    private string errorMessage = "";
+    private bool isProcessing = false;
+
+    // **** CAMBIO AQUÍ ****
+    // Se agregó este modelo vacío para el EditForm
+    private UploadFormModel formModel = new UploadFormModel();
+
+    // Cambiado de "es-NI" a "es-ES" para que acepte "1.234,56"
+    private CultureInfo culture = new CultureInfo("es-ES");
+
+    private void OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        statusMessage = $"Archivo seleccionado: {selectedFile.Name}";
+        errorMessage = "";
+    }
+
+    private async Task HandleAnalysis()
+    {
+        if (selectedFile == null || !UserStateService.IsLoggedIn)
+        {
+            errorMessage = "Por favor, selecciona un archivo y asegúrate de haber iniciado sesión.";
+            return;
+        }
+
+        isProcessing = true;
+        errorMessage = "";
+        statusMessage = "Iniciando procesamiento...";
+
+        var nuevoAnalisis = new AnalisisFinanciero
+        {
+            IdUsuario = UserStateService.CurrentUser.IdUsuario,
+            NombreArchivo = selectedFile.Name,
+            FechaAnalisis = DateTime.Now
+        };
+        DbContext.AnalisisFinancieros.Add(nuevoAnalisis);
+        await DbContext.SaveChangesAsync();
+
+        var conceptosBG = new List<BGConcepto>();
+        var conceptosER = new List<ERConcepto>();
+
+        try
+        {
+            await using var memoryStream = new MemoryStream();
+            await selectedFile.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            using (var reader = ExcelReaderFactory.CreateReader(memoryStream))
+            {
+                var dataSet = reader.AsDataSet(new ExcelDataSetConfiguration()
+                {
+                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration()
+                    {
+                        UseHeaderRow = false
+                    }
+                });
+
+                foreach (DataTable table in dataSet.Tables)
+                {
+                    var tipoHoja = DetectSheetType(table);
+
+                    if (tipoHoja == SheetType.BalanceGeneral)
+                    {
+                        conceptosBG.AddRange(ParseBalanceGeneral(table, nuevoAnalisis.IdAnalisis));
+                    }
+                    else if (tipoHoja == SheetType.EstadoResultados)
+                    {
+                        conceptosER.AddRange(ParseEstadoResultados(table, nuevoAnalisis.IdAnalisis));
+                    }
+                }
+            }
+
+            await DbContext.BGConceptos.AddRangeAsync(conceptosBG);
+            await DbContext.ERConceptos.AddRangeAsync(conceptosER);
+            await DbContext.SaveChangesAsync();
+
+            statusMessage = $"¡Análisis completado! Se guardaron {conceptosBG.Count} conceptos de BG y {conceptosER.Count} conceptos de ER.";
+            Logger.LogInformation(statusMessage);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al procesar el archivo: {ex.Message}";
+            Logger.LogError(ex, "Error en HandleAnalysis");
+
+            DbContext.AnalisisFinancieros.Remove(nuevoAnalisis);
+            await DbContext.SaveChangesAsync();
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    // --- MÉTODOS DE PARSEO ---
+
+    private enum SheetType { Unknown, BalanceGeneral, EstadoResultados }
+
+    private SheetType DetectSheetType(DataTable table)
+    {
+        foreach (DataRow row in table.Rows)
+        {
+            string concepto = SafeGetString(row, 0);
+            if (concepto.Equals("Total de Activos", StringComparison.OrdinalIgnoreCase))
+                return SheetType.BalanceGeneral;
+            if (concepto.Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
+                return SheetType.BalanceGeneral;
+            if (concepto.Equals("Utilidad neta", StringComparison.OrdinalIgnoreCase))
+                return SheetType.EstadoResultados;
+        }
+        return SheetType.Unknown;
+    }
+
+    private List<ERConcepto> ParseEstadoResultados(DataTable table, int analisisId)
+    {
+        var conceptos = new List<ERConcepto>();
+        int headerRowIndex = -1, year1 = 0, year2 = 0, colAnio1 = -1, colAnio2 = -1;
+
+        for (int i = 0; i < table.Rows.Count; i++)
+        {
+            string cellA = SafeGetString(table.Rows[i], 0);
+            if (cellA.Equals("Descripción", StringComparison.OrdinalIgnoreCase))
+            {
+                headerRowIndex = i;
+                colAnio1 = 2;
+                colAnio2 = 3;
+
+                int.TryParse(SafeGetString(table.Rows[i], colAnio1), out year1);
+                int.TryParse(SafeGetString(table.Rows[i], colAnio2), out year2);
+                break;
+            }
+        }
+
+        if (headerRowIndex == -1 || year1 == 0 || year2 == 0)
+        {
+            throw new Exception("No se pudo encontrar la fila de encabezado ('Descripción', '2023', '2024') en la hoja de Estado de Resultados.");
+        }
+
+        for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
+        {
+            DataRow row = table.Rows[i];
+            string concepto = SafeGetString(row, 0);
+
+            if (string.IsNullOrWhiteSpace(concepto))
+            {
+                continue;
+            }
+
+            if (concepto.Equals("Utilidad neta", StringComparison.OrdinalIgnoreCase))
+            {
+                conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio1, culture) });
+                conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year2, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio2, culture) });
+                break; // Terminamos
+            }
+
+            conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio1, culture) });
+            conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year2, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio2, culture) });
+        }
+        return conceptos;
+    }
+
+    private List<BGConcepto> ParseBalanceGeneral(DataTable table, int analisisId)
+    {
+        var conceptos = new List<BGConcepto>();
+        int headerRowIndex = -1, year1 = 0, year2 = 0, colAnio1 = -1, colAnio2 = -1;
+        string currentType = "ACTIVO";
+
+        for (int i = 0; i < table.Rows.Count; i++)
+        {
+            string cellA = SafeGetString(table.Rows[i], 0);
+            if (cellA.Equals("Descripción", StringComparison.OrdinalIgnoreCase))
+            {
+                headerRowIndex = i;
+                colAnio1 = 2;
+                colAnio2 = 3;
+
+                int.TryParse(SafeGetString(table.Rows[i - 1], colAnio1), out year1);
+                int.TryParse(SafeGetString(table.Rows[i - 1], colAnio2), out year2);
+                break;
+            }
+        }
+
+        if (headerRowIndex == -1 || year1 == 0 || year2 == 0)
+        {
+            throw new Exception("No se pudo encontrar la fila de encabezado ('Descripción') o los años (ej. '2023', '2024') en la hoja de Balance General.");
+        }
+
+        for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
+        {
+            DataRow row = table.Rows[i];
+            string concepto = SafeGetString(row, 0);
+
+            if (concepto.Equals("Pasivos", StringComparison.OrdinalIgnoreCase))
+            {
+                currentType = "PASIVO";
+                continue;
+            }
+            if (concepto.Equals("Capital", StringComparison.OrdinalIgnoreCase))
+            {
+                currentType = "CAPITAL";
+                continue;
+            }
+            if (string.IsNullOrWhiteSpace(concepto) ||
+                concepto.Equals("Activos", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Circulantes", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Fijos", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (concepto.Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
+            {
+                break; // Terminamos
+            }
+
+            conceptos.Add(new BGConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Tipo = currentType, Valor = SafeGetDecimal(row, colAnio1, culture) });
+            conceptos.Add(new BGConcepto { IdAnalisis = analisisId, Anio = year2, Concepto = concepto, Tipo = currentType, Valor = SafeGetDecimal(row, colAnio2, culture) });
+        }
+        return conceptos;
+    }
+
+    // --- MÉTODOS AYUDANTES ---
+
+    private string SafeGetString(DataRow row, int colIndex)
+    {
+        if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
+            return string.Empty;
+        return row[colIndex].ToString().Trim();
+    }
+
+    private decimal SafeGetDecimal(DataRow row, int colIndex, CultureInfo culture)
+    {
+        if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
+            return 0m;
+
+        string valueStr = row[colIndex].ToString().Trim();
+        if (string.IsNullOrWhiteSpace(valueStr))
+            return 0m;
+
+        valueStr = valueStr.Replace("C$", "").Replace("(", "-").Replace(")", "").Trim();
+
+        // Usamos NumberStyles.Any para permitir separadores de miles (ej. "1.234.567,89")
+        if (decimal.TryParse(valueStr, NumberStyles.Any, culture, out decimal result))
+        {
+            return result;
+        }
+
+        // Intento de fallback (ej. "1234.56" sin comas de miles)
+        if (decimal.TryParse(valueStr, NumberStyles.Number, CultureInfo.InvariantCulture, out result))
+        {
+            return result;
+        }
+
+        return 0m;
+    }
+
+    // **** CAMBIO AQUÍ ****
+    // Se agregó esta clase vacía al final, pero dentro del @code
+    public class UploadFormModel
+    {
+        // No necesitamos nada aquí adentro,
+        // es solo para que el EditForm tenga un modelo que vigilar.
+    }
+}

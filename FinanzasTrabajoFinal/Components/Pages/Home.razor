@@ -1,0 +1,214 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using FinanzasTrabajoFinal.Service
+@inject UserStateService UserStateService
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<style>
+    /* (El CSS no cambia, se queda igual que el original) */
+    :root {
+        --accent-1: #0f766e;
+        --accent-2: #06b6d4;
+        --text-on-light: #0b2540; /* azul oscuro legible sobre blanco */
+        --muted-on-light: #6b7280;
+        --glass-bg: rgba(255,255,255,0.6);
+        --card-radius: 1rem;
+    }
+
+    /* Forzar colores oscuros sobre fondos claros */
+    .hero-card,
+    .glass-card {
+        color: var(--text-on-light);
+    }
+
+        .hero-card .text-muted,
+        .glass-card .text-muted,
+        .hero-card p.text-muted,
+        .glass-card p.text-muted {
+            color: var(--muted-on-light) !important;
+        }
+
+    .home-hero {
+        background: linear-gradient(135deg, rgba(6,182,212,0.08) 0%, rgba(15,118,110,0.04) 50%), url('/images/abstract-finance.svg');
+        background-size: cover;
+        background-position: center;
+        padding: 4rem 0;
+        width: 100%;
+    }
+
+    .hero-card {
+        background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));
+        border-radius: var(--card-radius);
+        box-shadow: 0 10px 30px rgba(15,20,25,0.06);
+        padding: 2rem;
+        backdrop-filter: blur(4px);
+    }
+
+    .brand-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .25rem .6rem;
+        background: linear-gradient(90deg,var(--accent-1), var(--accent-2));
+        color: var(--text-on-light); /* cambiado de white a azul oscuro */
+        border-radius: .6rem;
+        font-weight: 600;
+        font-size: .9rem;
+        box-shadow: 0 6px 18px rgba(6,182,212,0.14);
+    }
+
+    .features-grid .glass-card {
+        background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.9));
+        border-radius: .9rem;
+        padding: 1.4rem;
+        transition: transform .18s ease, box-shadow .18s ease;
+        box-shadow: 0 6px 18px rgba(10,20,30,0.04);
+    }
+
+    /* (El resto del CSS sigue igual) */
+    .feature-icon {
+        width: 48px;
+        height: 48px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: .8rem;
+        background: linear-gradient(180deg, rgba(6,182,212,0.12), rgba(15,118,110,0.06));
+        color: var(--accent-1);
+        font-size: 1.2rem;
+        margin-bottom: .6rem;
+    }
+
+    .cta-btn {
+        border-radius: .8rem;
+        padding: .6rem 1.2rem;
+        box-shadow: 0 8px 22px rgba(6,182,212,0.08);
+        font-weight: 600;
+        color: var(--text-on-light);
+    }
+
+    @@media (max-width: 767px) {
+        .home-hero {
+            padding: 2.5rem 0;
+        }
+
+        .brand-badge {
+            font-size: .85rem;
+        }
+    }
+</style>
+
+<div class="home-hero">
+    <div class="container">
+        <div class="row align-items-center mb-4">
+
+            <div class="col-md-12">
+                <div class="hero-card">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+
+                        <div>
+                            <span class="brand-badge">FinanzasApp</span>
+                        </div>
+                        <div class="text-end text-muted small">Analytics • Simple • Seguro</div>
+
+                    </div>
+
+                    @if (UserStateService.IsLoggedIn)
+                    {
+                        <h1 class="h2 mb-2">Hola, @UserStateService.CurrentUser?.NombreUsuario 👋</h1>
+                        <p class="text-muted mb-3">
+                            Analiza
+                            tu información financiera en segundos. Sube archivos, revisa resultados y genera reportes profesionales.
+                        </p>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a class="btn cta-btn" href="upload" style="background:linear-gradient(90deg,var(--accent-1),var(--accent-2));">Nuevo Análisis</a>
+
+                            <a class="btn btn-outline-secondary cta-btn" href="history">Ver Historial</a>
+                            <a class="btn btn-outline-primary cta-btn" href="reports">Reportes</a>
+                        </div>
+                    }
+
+                    else
+                    {
+                        <h1 class="h2 mb-2">Bienvenido a FinanzasApp</h1>
+                        <p class="text-muted mb-3">Tu herramienta personal para convertir datos en decisiones financieras inteligentes.</p>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn cta-btn" @onclick="GoToLogin" style="background:linear-gradient(90deg,var(--accent-1),var(--accent-2));">Iniciar Sesión</button>
+                            <a class="btn btn-outline-secondary cta-btn" href="register">Crear Cuenta</a>
+
+                        </div>
+                    }
+                </div>
+            </div>
+
+        </div>
+
+        <div class="row features-grid g-4">
+
+            <div class="col-md-4">
+                <div class="glass-card">
+                    <div class="feature-icon">📤</div>
+                    <h5 class="mb-1">Carga fácil</h5>
+                    <p class="text-muted small mb-0">Soporte para Excel y CSV, mapeo automático de columnas.</p>
+
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="glass-card">
+                    <div class="feature-icon">📊</div>
+                    <h5 class="mb-1">Informes inteligentes</h5>
+
+                    <p class="text-muted small mb-0">Ratios, horizontales y verticales listos para exportar.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="glass-card">
+
+                    <div class="feature-icon">⚙️</div>
+                    <h5 class="mb-1">Configuración rápida</h5>
+                    <p class="text-muted small mb-0">Ajusta periodos, filtros y parámetros de análisis.</p>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="hero-card text-center">
+
+                    <svg width="120" height="120" viewBox="0 0 24 24" fill="none" class="mb-3" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="1.5" y="4.5" width="21" height="15" rx="2" stroke="rgba(6,182,212,0.9)" stroke-width="1.2" />
+                        <path d="M6 10h5v5H6z" fill="rgba(6,182,212,0.12)" stroke="rgba(6,182,212,0.9)" />
+                    </svg>
+
+                    <h6 class="mb-1">Seguridad y privacidad</h6>
+                    <p class="text-muted small">Tus datos cifrados y almacenados de forma segura.</p>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        UserStateService.OnChange += HandleUserStateChange;
+    }
+
+    private async void HandleUserStateChange()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void GoToLogin()
+    {
+        NavigationManager.NavigateTo("/login");
+    }
+
+    public void Dispose()
+    {
+        UserStateService.OnChange -= HandleUserStateChange;
+    }
+}

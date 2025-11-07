@@ -1,0 +1,31 @@
+﻿@page "/logout"
+@rendermode InteractiveServer
+@using FinanzasTrabajoFinal.Service
+
+@inject UserStateService UserStateService
+@inject NavigationManager NavigationManager
+
+<p>Cerrando sesión...</p>
+
+@code {
+    private bool hasLoggedOut = false;
+
+    // 1. OnInitialized AHORA solo hace el trabajo de logout
+    protected override void OnInitialized()
+    {
+        // Llama al servicio para limpiar el usuario
+        UserStateService.LogoutUser();
+        hasLoggedOut = true; // Preparamos una bandera
+    }
+
+    // 2. OnAfterRenderAsync se ejecuta DESPUÉS de que la página se cargó
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // Si es la primera vez que se carga Y ya cerramos sesión
+        if (firstRender && hasLoggedOut)
+        {
+            // ¡AHORA sí es seguro navegar!
+            NavigationManager.NavigateTo("/login");
+        }
+    }
+}
