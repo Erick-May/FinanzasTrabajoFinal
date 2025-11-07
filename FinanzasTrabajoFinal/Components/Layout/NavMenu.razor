@@ -1,6 +1,4 @@
-﻿@* --- ¡QUITA EL @rendermode DE AQUÍ! --- *@
-
-@implements IDisposable
+﻿@implements IDisposable
 @using FinanzasTrabajoFinal.Service
 @inject UserStateService UserStateService
 @inject NavigationManager NavigationManager
@@ -11,6 +9,19 @@
         <span class="brand-logo">F</span>
         <span class="brand-text">FinanzasApp</span>
     </a>
+
+    <form class="d-none d-md-flex mx-3 search-form" role="search" onsubmit="return false;">
+        <input class="form-control form-control-sm search-input" placeholder="Buscar análisis, reportes..." />
+
+        <button class="btn btn-sm btn-search" type="button" title="Buscar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /><circle cx="11" cy="11" r="5" stroke="currentColor" stroke-width="1.6" /></svg>
+        </button>
+    </form>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavbar"
+            aria-controls="topNavbar" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
 
     <div class="collapse navbar-collapse" id="topNavbar">
         <ul class="navbar-nav ms-auto align-items-lg-center">
@@ -23,10 +34,10 @@
             @if (UserStateService.IsLoggedIn)
             {
                 <li class="nav-item">
-                    <a class="nav-link d-flex align-items-center" href="profile">
+                    <span class="nav-link d-flex align-items-center" style="cursor: default;">
                         <img src="/images/avatar-placeholder.png" class="avatar" alt="avatar" />
                         <span class="d-none d-lg-inline ms-2 user-name">@UserStateService.CurrentUser?.NombreUsuario</span>
-                    </a>
+                    </span>
                 </li>
 
                 <li class="nav-item ms-lg-2">
@@ -40,7 +51,87 @@
 </nav>
 
 <style>
-    /* ... (Todo el CSS se queda igual) ... */
+    .fb-navbar {
+        background: linear-gradient(90deg,#1877f2,#0d66d0);
+        color: #fff;
+    }
+
+        .fb-navbar .navbar-brand {
+            color: #fff;
+            text-decoration: none;
+        }
+
+    .brand-logo {
+        display: inline-grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 6px;
+        background: #fff;
+        color: #0d66d0;
+        font-weight: 700;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    .brand-text {
+        font-weight: 700;
+        color: #fff;
+        margin-left: .25rem;
+    }
+
+    .search-form {
+        align-items: center;
+    }
+
+    .search-input {
+        width: 360px;
+        border-radius: 999px 0 0 999px;
+        border: none;
+        padding: .35rem .8rem;
+    }
+
+    .btn-search {
+        border-radius: 0 999px 999px 0;
+        background: rgba(255,255,255,0.12);
+        border: none;
+        color: #fff;
+        padding: .35rem .6rem;
+    }
+
+    .nav-icon svg {
+        color: rgba(255,255,255,0.95);
+    }
+
+    .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid rgba(255,255,255,0.15);
+    }
+
+    .user-name {
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .fb-navbar .nav-link {
+        color: rgba(255,255,255,0.95);
+    }
+
+    .fb-navbar .dropdown-menu {
+        min-width: 160px;
+    }
+
+    @@media (max-width: 767px) {
+        .search-input {
+            display: none;
+        }
+
+        .user-name {
+            display: none;
+        }
+    }
 </style>
 
 @code {

@@ -15,7 +15,9 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("No se encontró la cadena de conexión 'DefaultConnection'. Revisa tu appsettings.json.");
 
 // Registra el DbContext
-builder.Services.AddDbContext<FinanzasContext>(options =>
+
+
+builder.Services.AddDbContextFactory<FinanzasContext>(options =>
     options.UseSqlServer(connectionString));
 
 // Registra los servicios

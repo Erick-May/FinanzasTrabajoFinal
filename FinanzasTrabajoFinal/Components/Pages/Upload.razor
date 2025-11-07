@@ -7,8 +7,9 @@
 @using FinanzasTrabajoFinal.MODELS
 @using FinanzasTrabajoFinal.Service
 @using System.Globalization
+@using Microsoft.EntityFrameworkCore
 
-@inject FinanzasContext DbContext
+@inject IDbContextFactory<FinanzasContext> DbFactory
 @inject UserStateService UserStateService
 @inject NavigationManager NavigationManager
 @inject ILogger<Upload> Logger
@@ -35,7 +36,7 @@
 
             <div class="mb-3">
                 <label for="fileUpload" class="form-label">Seleccionar archivo:</label>
-                <InputFile id="fileUpload" class="form-control" OnChange="OnInputFileChange" accept=".xlsx, .csv" />
+                <InputFile id="fileUpload" class="form-control" OnChange="OnInputFileChange" accept=".xlsx, .csv" disabled="@isProcessing" />
             </div>
 
             @if (!string.IsNullOrEmpty(statusMessage))
@@ -67,8 +68,19 @@
             </div>
         </EditForm>
         <hr class="my-4">
-        <div class="text-center">
-            <a href="/">Volver al inicio</a>
+
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                @if (isProcessing)
+                {
+                    <button class="btn btn-danger text-white" @onclick="StopProcessing">
+                        Detener Proceso
+                    </button>
+                }
+            </div>
+            <div>
+                <a href="/">Volver al inicio</a>
+            </div>
         </div>
     </div>
 </div>
@@ -79,18 +91,21 @@
     private string errorMessage = "";
     private bool isProcessing = false;
 
-    // **** CAMBIO AQUÍ ****
-    // Se agregó este modelo vacío para el EditForm
     private UploadFormModel formModel = new UploadFormModel();
-
-    // Cambiado de "es-NI" a "es-ES" para que acepte "1.234,56"
     private CultureInfo culture = new CultureInfo("es-ES");
+
+    private CancellationTokenSource? _cts;
 
     private void OnInputFileChange(InputFileChangeEventArgs e)
     {
         selectedFile = e.File;
         statusMessage = $"Archivo seleccionado: {selectedFile.Name}";
         errorMessage = "";
+    }
+
+    private void StopProcessing()
+    {
+        _cts?.Cancel();
     }
 
     private async Task HandleAnalysis()
@@ -101,75 +116,110 @@
             return;
         }
 
+        _cts = new CancellationTokenSource();
         isProcessing = true;
         errorMessage = "";
         statusMessage = "Iniciando procesamiento...";
 
-        var nuevoAnalisis = new AnalisisFinanciero
-        {
-            IdUsuario = UserStateService.CurrentUser.IdUsuario,
-            NombreArchivo = selectedFile.Name,
-            FechaAnalisis = DateTime.Now
-        };
-        DbContext.AnalisisFinancieros.Add(nuevoAnalisis);
-        await DbContext.SaveChangesAsync();
+        StateHasChanged();
 
-        var conceptosBG = new List<BGConcepto>();
-        var conceptosER = new List<ERConcepto>();
+        AnalisisFinanciero? nuevoAnalisis = null;
 
         try
         {
-            await using var memoryStream = new MemoryStream();
-            await selectedFile.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(memoryStream);
-            memoryStream.Position = 0;
-
-            using (var reader = ExcelReaderFactory.CreateReader(memoryStream))
+            await Task.Run(async () =>
             {
-                var dataSet = reader.AsDataSet(new ExcelDataSetConfiguration()
-                {
-                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration()
-                    {
-                        UseHeaderRow = false
-                    }
-                });
+                await using var DbContext = await DbFactory.CreateDbContextAsync(_cts.Token);
 
-                foreach (DataTable table in dataSet.Tables)
+                nuevoAnalisis = new AnalisisFinanciero
                 {
-                    var tipoHoja = DetectSheetType(table);
+                    IdUsuario = UserStateService.CurrentUser.IdUsuario,
+                    NombreArchivo = selectedFile.Name,
+                    FechaAnalisis = DateTime.Now
+                };
+                DbContext.AnalisisFinancieros.Add(nuevoAnalisis);
+                await DbContext.SaveChangesAsync(_cts.Token);
 
-                    if (tipoHoja == SheetType.BalanceGeneral)
+                var conceptosBG = new List<BGConcepto>();
+                var conceptosER = new List<ERConcepto>();
+
+                await using var memoryStream = new MemoryStream();
+                await selectedFile.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(memoryStream, _cts.Token);
+                memoryStream.Position = 0;
+
+                using (var reader = ExcelReaderFactory.CreateReader(memoryStream))
+                {
+                    var dataSet = reader.AsDataSet(new ExcelDataSetConfiguration()
                     {
-                        conceptosBG.AddRange(ParseBalanceGeneral(table, nuevoAnalisis.IdAnalisis));
-                    }
-                    else if (tipoHoja == SheetType.EstadoResultados)
+                        ConfigureDataTable = (_) => new ExcelDataTableConfiguration() { UseHeaderRow = false }
+                    });
+
+                    foreach (DataTable table in dataSet.Tables)
                     {
-                        conceptosER.AddRange(ParseEstadoResultados(table, nuevoAnalisis.IdAnalisis));
+                        _cts.Token.ThrowIfCancellationRequested();
+
+                        var tipoHoja = DetectSheetType(table);
+                        if (tipoHoja == SheetType.BalanceGeneral)
+                        {
+                            conceptosBG.AddRange(ParseBalanceGeneral(table, nuevoAnalisis.IdAnalisis, _cts.Token));
+                        }
+                        else if (tipoHoja == SheetType.EstadoResultados)
+                        {
+                            conceptosER.AddRange(ParseEstadoResultados(table, nuevoAnalisis.IdAnalisis, _cts.Token));
+                        }
                     }
                 }
+
+                await DbContext.BGConceptos.AddRangeAsync(conceptosBG, _cts.Token);
+                await DbContext.ERConceptos.AddRangeAsync(conceptosER, _cts.Token);
+                await DbContext.SaveChangesAsync(_cts.Token);
+
+                await InvokeAsync(() =>
+                {
+                    statusMessage = $"¡Análisis completado! Se guardaron {conceptosBG.Count} conceptos de BG y {conceptosER.Count} conceptos de ER.";
+                    Logger.LogInformation(statusMessage);
+                });
+
+            }, _cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            statusMessage = "";
+            errorMessage = "Proceso cancelado por el usuario.";
+
+            if (nuevoAnalisis != null)
+            {
+                await using var DbContext = await DbFactory.CreateDbContextAsync();
+                DbContext.AnalisisFinancieros.Remove(nuevoAnalisis);
+                await DbContext.SaveChangesAsync();
             }
-
-            await DbContext.BGConceptos.AddRangeAsync(conceptosBG);
-            await DbContext.ERConceptos.AddRangeAsync(conceptosER);
-            await DbContext.SaveChangesAsync();
-
-            statusMessage = $"¡Análisis completado! Se guardaron {conceptosBG.Count} conceptos de BG y {conceptosER.Count} conceptos de ER.";
-            Logger.LogInformation(statusMessage);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error al procesar el archivo: {ex.Message}";
+            statusMessage = "";
+
+            // **** ¡ESTA ES LA LÍNEA CORREGIDA! ****
+            // Te mostrará el error principal Y el error interno
+            errorMessage = $"Error: {ex.Message} | DETALLE INTERNO: {ex.InnerException?.Message}";
+
             Logger.LogError(ex, "Error en HandleAnalysis");
 
-            DbContext.AnalisisFinancieros.Remove(nuevoAnalisis);
-            await DbContext.SaveChangesAsync();
+            if (nuevoAnalisis != null)
+            {
+                await using var DbContext = await DbFactory.CreateDbContextAsync();
+                DbContext.AnalisisFinancieros.Remove(nuevoAnalisis);
+                await DbContext.SaveChangesAsync();
+            }
         }
         finally
         {
             isProcessing = false;
+            _cts?.Dispose();
+            StateHasChanged();
         }
     }
 
-    // --- MÉTODOS DE PARSEO ---
+    // --- MÉTODOS DE PARSEO (Ahora aceptan un CancellationToken) ---
 
     private enum SheetType { Unknown, BalanceGeneral, EstadoResultados }
 
@@ -188,13 +238,14 @@
         return SheetType.Unknown;
     }
 
-    private List<ERConcepto> ParseEstadoResultados(DataTable table, int analisisId)
+    private List<ERConcepto> ParseEstadoResultados(DataTable table, int analisisId, CancellationToken token)
     {
         var conceptos = new List<ERConcepto>();
         int headerRowIndex = -1, year1 = 0, year2 = 0, colAnio1 = -1, colAnio2 = -1;
 
         for (int i = 0; i < table.Rows.Count; i++)
         {
+            token.ThrowIfCancellationRequested();
             string cellA = SafeGetString(table.Rows[i], 0);
             if (cellA.Equals("Descripción", StringComparison.OrdinalIgnoreCase))
             {
@@ -215,28 +266,24 @@
 
         for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
         {
+            token.ThrowIfCancellationRequested();
             DataRow row = table.Rows[i];
             string concepto = SafeGetString(row, 0);
 
-            if (string.IsNullOrWhiteSpace(concepto))
-            {
-                continue;
-            }
-
-            if (concepto.Equals("Utilidad neta", StringComparison.OrdinalIgnoreCase))
-            {
-                conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio1, culture) });
-                conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year2, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio2, culture) });
-                break; // Terminamos
-            }
+            if (string.IsNullOrWhiteSpace(concepto)) continue;
 
             conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio1, culture) });
             conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year2, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio2, culture) });
+
+            if (concepto.Equals("Utilidad neta", StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
         }
         return conceptos;
     }
 
-    private List<BGConcepto> ParseBalanceGeneral(DataTable table, int analisisId)
+    private List<BGConcepto> ParseBalanceGeneral(DataTable table, int analisisId, CancellationToken token)
     {
         var conceptos = new List<BGConcepto>();
         int headerRowIndex = -1, year1 = 0, year2 = 0, colAnio1 = -1, colAnio2 = -1;
@@ -244,6 +291,7 @@
 
         for (int i = 0; i < table.Rows.Count; i++)
         {
+            token.ThrowIfCancellationRequested();
             string cellA = SafeGetString(table.Rows[i], 0);
             if (cellA.Equals("Descripción", StringComparison.OrdinalIgnoreCase))
             {
@@ -264,6 +312,7 @@
 
         for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
         {
+            token.ThrowIfCancellationRequested();
             DataRow row = table.Rows[i];
             string concepto = SafeGetString(row, 0);
 
@@ -287,7 +336,7 @@
 
             if (concepto.Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
             {
-                break; // Terminamos
+                break;
             }
 
             conceptos.Add(new BGConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Tipo = currentType, Valor = SafeGetDecimal(row, colAnio1, culture) });
@@ -316,13 +365,11 @@
 
         valueStr = valueStr.Replace("C$", "").Replace("(", "-").Replace(")", "").Trim();
 
-        // Usamos NumberStyles.Any para permitir separadores de miles (ej. "1.234.567,89")
         if (decimal.TryParse(valueStr, NumberStyles.Any, culture, out decimal result))
         {
             return result;
         }
 
-        // Intento de fallback (ej. "1234.56" sin comas de miles)
         if (decimal.TryParse(valueStr, NumberStyles.Number, CultureInfo.InvariantCulture, out result))
         {
             return result;
@@ -331,11 +378,8 @@
         return 0m;
     }
 
-    // **** CAMBIO AQUÍ ****
-    // Se agregó esta clase vacía al final, pero dentro del @code
     public class UploadFormModel
     {
-        // No necesitamos nada aquí adentro,
-        // es solo para que el EditForm tenga un modelo que vigilar.
+        // (se queda igual)
     }
 }
