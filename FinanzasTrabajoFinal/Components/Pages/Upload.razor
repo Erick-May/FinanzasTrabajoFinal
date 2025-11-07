@@ -239,37 +239,15 @@
         return SheetType.Unknown;
     }
 
-    private bool IsHeaderRow(string cellValue)
-    {
-        return cellValue.StartsWith("Descrip", StringComparison.OrdinalIgnoreCase);
-    }
-
-    // **** ¡AQUÍ ESTÁ EL CAMBIO! ****
-    // Nueva función para leer los años, aunque sean doubles (2023.0)
     private int SafeGetYear(DataRow row, int colIndex)
     {
         if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
             return 0;
-
         var cellValue = row[colIndex];
-
-        if (cellValue is double dValue)
-        {
-            return (int)dValue; // Convierte 2023.0 a 2023
-        }
-
+        if (cellValue is double dValue) { return (int)dValue; }
         string stringValue = cellValue.ToString().Trim();
-        if (int.TryParse(stringValue, out int intValue))
-        {
-            return intValue; // Es un int
-        }
-
-        // Fallback por si es "2023.0" como string
-        if (double.TryParse(stringValue, out double doubleValue))
-        {
-            return (int)doubleValue;
-        }
-
+        if (int.TryParse(stringValue, out int intValue)) { return intValue; }
+        if (double.TryParse(stringValue, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleValue)) { return (int)doubleValue; }
         return 0;
     }
 
@@ -278,36 +256,46 @@
     {
         var conceptos = new List<ERConcepto>();
         int headerRowIndex = -1, year1 = 0, year2 = 0, colAnio1 = -1, colAnio2 = -1;
+        int descripColIndex = -1;
 
-        for (int i = 0; i < table.Rows.Count; i++)
+        for (int i = 0; i < 10 && i < table.Rows.Count; i++)
         {
             token.ThrowIfCancellationRequested();
-            string cellA = SafeGetString(table.Rows[i], 0);
-
-            if (IsHeaderRow(cellA))
+            for (int j = 0; j < table.Columns.Count; j++)
             {
-                headerRowIndex = i;
-                colAnio1 = 2;
-                colAnio2 = 3;
-
-                // **** ¡CAMBIO AQUÍ! ****
-                // Usamos la nueva función SafeGetYear
-                year1 = SafeGetYear(table.Rows[i], colAnio1);
-                year2 = SafeGetYear(table.Rows[i], colAnio2);
-                break;
+                string cellValue = SafeGetString(table.Rows[i], j);
+                if (cellValue.StartsWith("Descrip", StringComparison.OrdinalIgnoreCase))
+                {
+                    headerRowIndex = i;
+                    descripColIndex = j;
+                    colAnio1 = descripColIndex + 2; // Para ER es Col C (índice 2)
+                    colAnio2 = descripColIndex + 3; // Para ER es Col D (índice 3)
+                    year1 = SafeGetYear(table.Rows[i], colAnio1);
+                    year2 = SafeGetYear(table.Rows[i], colAnio2);
+                    if (year1 > 2000 && year2 > 2000) { break; }
+                    else { headerRowIndex = -1; year1 = 0; year2 = 0; }
+                }
             }
+            if (headerRowIndex != -1) break;
         }
 
         if (headerRowIndex == -1 || year1 == 0 || year2 == 0)
         {
-            throw new Exception("No se pudo encontrar la fila de encabezado (que comience con 'Descrip' y los años) en la hoja de Estado de Resultados.");
+            // **** ¡NUEVO MENSAJE DE ERROR! ****
+            string debugMsg = $"Debug ER: headerRowIndex={headerRowIndex}, year1={year1}, year2={year2}";
+            if (headerRowIndex != -1)
+            {
+                debugMsg += $", rawYear1Val='{SafeGetString(table.Rows[headerRowIndex], colAnio1)}'";
+                debugMsg += $", rawYear2Val='{SafeGetString(table.Rows[headerRowIndex], colAnio2)}'";
+            }
+            throw new Exception($"No se pudo encontrar el encabezado (con 'Descrip...' y dos años) en la hoja de Estado de Resultados. {debugMsg}");
         }
 
         for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
         {
             token.ThrowIfCancellationRequested();
             DataRow row = table.Rows[i];
-            string concepto = SafeGetString(row, 0);
+            string concepto = SafeGetString(row, descripColIndex);
 
             if (string.IsNullOrWhiteSpace(concepto)) continue;
 
@@ -339,23 +327,29 @@
                 {
                     headerRowIndex = i;
                     descripColIndex = j;
-                    colAnio1 = descripColIndex + 2;
-                    colAnio2 = descripColIndex + 3;
-
-                    // **** ¡CAMBIO AQUÍ! ****
-                    // Usamos la nueva función SafeGetYear
+                    colAnio1 = descripColIndex + 2; // Col C (índice 2)
                     year1 = SafeGetYear(table.Rows[i], colAnio1);
-                    year2 = SafeGetYear(table.Rows[i], colAnio2);
 
-                    if (year1 > 2000 && year2 > 2000)
+                    // **** ¡LÓGICA MEJORADA! ****
+                    // Si encontramos Año 1, buscamos el Año 2 en D o F
+                    if (year1 > 2000)
                     {
-                        break;
+                        // 1. Intentamos en D (índice 3)
+                        colAnio2 = descripColIndex + 3;
+                        year2 = SafeGetYear(table.Rows[i], colAnio2);
+                        if (year2 > 2000) break; // ¡Encontrado!
+
+                        // 2. Si no, intentamos en F (índice 5)
+                        colAnio2 = descripColIndex + 5;
+                        year2 = SafeGetYear(table.Rows[i], colAnio2);
+                        if (year2 > 2000) break; // ¡Encontrado!
+
+                        // 3. Si no, reseteamos y seguimos buscando
+                        headerRowIndex = -1; year1 = 0; year2 = 0;
                     }
                     else
                     {
-                        headerRowIndex = -1; // Falsa alarma, seguimos buscando
-                        year1 = 0;
-                        year2 = 0;
+                        headerRowIndex = -1; // No era un encabezado válido
                     }
                 }
             }
@@ -365,7 +359,14 @@
 
         if (headerRowIndex == -1 || year1 == 0 || year2 == 0)
         {
-            throw new Exception("No se pudo encontrar la fila de encabezado (con 'Descrip...' y dos años) en la hoja de Balance General.");
+            // **** ¡NUEVO MENSAJE DE ERROR! ****
+            string debugMsg = $"Debug BG: headerRowIndex={headerRowIndex}, year1={year1}, year2={year2}";
+            if (headerRowIndex != -1)
+            {
+                debugMsg += $", rawYear1Val='{SafeGetString(table.Rows[headerRowIndex], colAnio1)}'";
+                debugMsg += $", rawYear2Val='{SafeGetString(table.Rows[headerRowIndex], colAnio2)}'";
+            }
+            throw new Exception($"No se pudo encontrar el encabezado (con 'Descrip...' y dos años) en la hoja de Balance General. {debugMsg}");
         }
 
         for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
@@ -415,8 +416,6 @@
     {
         if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
             return string.Empty;
-
-        // Devuelve el objeto tal cual si es double, o el string si es string
         var cellValue = row[colIndex];
         return cellValue.ToString().Trim();
     }
@@ -426,17 +425,11 @@
         if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
             return 0m;
 
-        // **** ¡CAMBIO AQUÍ! ****
-        // Leemos el valor como objeto primero
         var cellValue = row[colIndex];
+        if (cellValue is double dValue) { return (decimal)dValue; }
+        if (cellValue is int iValue) { return (decimal)iValue; }
+        if (cellValue is long lValue) { return (decimal)lValue; }
 
-        // Si ya es un número (double), lo convertimos a decimal
-        if (cellValue is double dValue)
-        {
-            return (decimal)dValue;
-        }
-
-        // Si es un string, lo parseamos como antes
         string valueStr = cellValue.ToString().Trim();
         if (string.IsNullOrWhiteSpace(valueStr))
             return 0m;
@@ -458,6 +451,5 @@
 
     public class UploadFormModel
     {
-        // (se queda igual)
     }
 }
