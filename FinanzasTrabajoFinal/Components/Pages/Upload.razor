@@ -170,6 +170,11 @@
                     }
                 }
 
+                if (conceptosBG.Count == 0 && conceptosER.Count == 0)
+                {
+                    throw new Exception("No se pudo leer ningún dato. Revisa que el formato del Excel sea el correcto (con 'Descripción' o 'Activos'/'Utilidad neta').");
+                }
+
                 await DbContext.BGConceptos.AddRangeAsync(conceptosBG, _cts.Token);
                 await DbContext.ERConceptos.AddRangeAsync(conceptosER, _cts.Token);
                 await DbContext.SaveChangesAsync(_cts.Token);
@@ -197,11 +202,7 @@
         catch (Exception ex)
         {
             statusMessage = "";
-
-            // **** ¡ESTA ES LA LÍNEA CORREGIDA! ****
-            // Te mostrará el error principal Y el error interno
             errorMessage = $"Error: {ex.Message} | DETALLE INTERNO: {ex.InnerException?.Message}";
-
             Logger.LogError(ex, "Error en HandleAnalysis");
 
             if (nuevoAnalisis != null)
@@ -219,7 +220,7 @@
         }
     }
 
-    // --- MÉTODOS DE PARSEO (Ahora aceptan un CancellationToken) ---
+    // --- MÉTODOS DE PARSEO ---
 
     private enum SheetType { Unknown, BalanceGeneral, EstadoResultados }
 
@@ -238,6 +239,41 @@
         return SheetType.Unknown;
     }
 
+    private bool IsHeaderRow(string cellValue)
+    {
+        return cellValue.StartsWith("Descrip", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // **** ¡AQUÍ ESTÁ EL CAMBIO! ****
+    // Nueva función para leer los años, aunque sean doubles (2023.0)
+    private int SafeGetYear(DataRow row, int colIndex)
+    {
+        if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
+            return 0;
+
+        var cellValue = row[colIndex];
+
+        if (cellValue is double dValue)
+        {
+            return (int)dValue; // Convierte 2023.0 a 2023
+        }
+
+        string stringValue = cellValue.ToString().Trim();
+        if (int.TryParse(stringValue, out int intValue))
+        {
+            return intValue; // Es un int
+        }
+
+        // Fallback por si es "2023.0" como string
+        if (double.TryParse(stringValue, out double doubleValue))
+        {
+            return (int)doubleValue;
+        }
+
+        return 0;
+    }
+
+
     private List<ERConcepto> ParseEstadoResultados(DataTable table, int analisisId, CancellationToken token)
     {
         var conceptos = new List<ERConcepto>();
@@ -247,21 +283,24 @@
         {
             token.ThrowIfCancellationRequested();
             string cellA = SafeGetString(table.Rows[i], 0);
-            if (cellA.Equals("Descripción", StringComparison.OrdinalIgnoreCase))
+
+            if (IsHeaderRow(cellA))
             {
                 headerRowIndex = i;
                 colAnio1 = 2;
                 colAnio2 = 3;
 
-                int.TryParse(SafeGetString(table.Rows[i], colAnio1), out year1);
-                int.TryParse(SafeGetString(table.Rows[i], colAnio2), out year2);
+                // **** ¡CAMBIO AQUÍ! ****
+                // Usamos la nueva función SafeGetYear
+                year1 = SafeGetYear(table.Rows[i], colAnio1);
+                year2 = SafeGetYear(table.Rows[i], colAnio2);
                 break;
             }
         }
 
         if (headerRowIndex == -1 || year1 == 0 || year2 == 0)
         {
-            throw new Exception("No se pudo encontrar la fila de encabezado ('Descripción', '2023', '2024') en la hoja de Estado de Resultados.");
+            throw new Exception("No se pudo encontrar la fila de encabezado (que comience con 'Descrip' y los años) en la hoja de Estado de Resultados.");
         }
 
         for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
@@ -287,34 +326,53 @@
     {
         var conceptos = new List<BGConcepto>();
         int headerRowIndex = -1, year1 = 0, year2 = 0, colAnio1 = -1, colAnio2 = -1;
+        int descripColIndex = -1;
         string currentType = "ACTIVO";
 
-        for (int i = 0; i < table.Rows.Count; i++)
+        for (int i = 0; i < 10 && i < table.Rows.Count; i++)
         {
             token.ThrowIfCancellationRequested();
-            string cellA = SafeGetString(table.Rows[i], 0);
-            if (cellA.Equals("Descripción", StringComparison.OrdinalIgnoreCase))
+            for (int j = 0; j < table.Columns.Count; j++)
             {
-                headerRowIndex = i;
-                colAnio1 = 2;
-                colAnio2 = 3;
+                string cellValue = SafeGetString(table.Rows[i], j);
+                if (cellValue.StartsWith("Descrip", StringComparison.OrdinalIgnoreCase))
+                {
+                    headerRowIndex = i;
+                    descripColIndex = j;
+                    colAnio1 = descripColIndex + 2;
+                    colAnio2 = descripColIndex + 3;
 
-                int.TryParse(SafeGetString(table.Rows[i - 1], colAnio1), out year1);
-                int.TryParse(SafeGetString(table.Rows[i - 1], colAnio2), out year2);
-                break;
+                    // **** ¡CAMBIO AQUÍ! ****
+                    // Usamos la nueva función SafeGetYear
+                    year1 = SafeGetYear(table.Rows[i], colAnio1);
+                    year2 = SafeGetYear(table.Rows[i], colAnio2);
+
+                    if (year1 > 2000 && year2 > 2000)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        headerRowIndex = -1; // Falsa alarma, seguimos buscando
+                        year1 = 0;
+                        year2 = 0;
+                    }
+                }
             }
+            if (headerRowIndex != -1) break;
         }
+
 
         if (headerRowIndex == -1 || year1 == 0 || year2 == 0)
         {
-            throw new Exception("No se pudo encontrar la fila de encabezado ('Descripción') o los años (ej. '2023', '2024') en la hoja de Balance General.");
+            throw new Exception("No se pudo encontrar la fila de encabezado (con 'Descrip...' y dos años) en la hoja de Balance General.");
         }
 
         for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
         {
             token.ThrowIfCancellationRequested();
             DataRow row = table.Rows[i];
-            string concepto = SafeGetString(row, 0);
+            string concepto = SafeGetString(row, descripColIndex);
 
             if (concepto.Equals("Pasivos", StringComparison.OrdinalIgnoreCase))
             {
@@ -329,7 +387,13 @@
             if (string.IsNullOrWhiteSpace(concepto) ||
                 concepto.Equals("Activos", StringComparison.OrdinalIgnoreCase) ||
                 concepto.Equals("Circulantes", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Equals("Fijos", StringComparison.OrdinalIgnoreCase))
+                concepto.Equals("Fijos", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Total Activo Circulante", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Total Activo Fijo", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Total Activos", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Total Otros Activos", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Total Pasivo Circulante", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Total Capital", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -351,7 +415,10 @@
     {
         if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
             return string.Empty;
-        return row[colIndex].ToString().Trim();
+
+        // Devuelve el objeto tal cual si es double, o el string si es string
+        var cellValue = row[colIndex];
+        return cellValue.ToString().Trim();
     }
 
     private decimal SafeGetDecimal(DataRow row, int colIndex, CultureInfo culture)
@@ -359,7 +426,18 @@
         if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
             return 0m;
 
-        string valueStr = row[colIndex].ToString().Trim();
+        // **** ¡CAMBIO AQUÍ! ****
+        // Leemos el valor como objeto primero
+        var cellValue = row[colIndex];
+
+        // Si ya es un número (double), lo convertimos a decimal
+        if (cellValue is double dValue)
+        {
+            return (decimal)dValue;
+        }
+
+        // Si es un string, lo parseamos como antes
+        string valueStr = cellValue.ToString().Trim();
         if (string.IsNullOrWhiteSpace(valueStr))
             return 0m;
 

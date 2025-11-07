@@ -28,17 +28,6 @@ public class FinanzasContext : DbContext
             .Property(oa => oa.Flujo)
             .HasMaxLength(10); // Asume un string de max 10 caracteres
 
-        // Corrección del error 1 (Usuario a Usuarios)
-        modelBuilder.Entity<AnalisisFinanciero>()
-            .HasOne<Usuarios>() // <-- CORRECCIÓN: Usa 'Usuarios' (el nombre de tu clase)
-            .WithMany(u => u.AnalisisFinancieros)
-            .HasForeignKey(a => a.IdUsuario);
-
-        // Configuración para BG_CONCEPTO
-        modelBuilder.Entity<BGConcepto>()
-            .Property(b => b.Valor) // El nombre de la propiedad en C# es 'Valor', no 'VALOR'
-            .HasColumnType("decimal(18, 2)");
-
         base.OnModelCreating(modelBuilder);
     }
 }
