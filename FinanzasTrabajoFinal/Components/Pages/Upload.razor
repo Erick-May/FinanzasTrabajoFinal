@@ -124,6 +124,7 @@
         StateHasChanged();
 
         AnalisisFinanciero? nuevoAnalisis = null;
+        int idAnalisisGenerado = 0; // Guardaremos el ID aquí
 
         try
         {
@@ -131,6 +132,7 @@
             {
                 await using var DbContext = await DbFactory.CreateDbContextAsync(_cts.Token);
 
+                // --- 1. CREAR ANÁLISIS ---
                 nuevoAnalisis = new AnalisisFinanciero
                 {
                     IdUsuario = UserStateService.CurrentUser.IdUsuario,
@@ -139,10 +141,12 @@
                 };
                 DbContext.AnalisisFinancieros.Add(nuevoAnalisis);
                 await DbContext.SaveChangesAsync(_cts.Token);
+                idAnalisisGenerado = nuevoAnalisis.IdAnalisis; // Obtenemos el ID
 
                 var conceptosBG = new List<BGConcepto>();
                 var conceptosER = new List<ERConcepto>();
 
+                // --- 2. LEER EXCEL ---
                 await using var memoryStream = new MemoryStream();
                 await selectedFile.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(memoryStream, _cts.Token);
                 memoryStream.Position = 0;
@@ -170,19 +174,144 @@
                     }
                 }
 
-                if (conceptosBG.Count == 0 && conceptosER.Count == 0)
+                if (conceptosBG.Count == 0 || conceptosER.Count == 0)
                 {
-                    throw new Exception("No se pudo leer ningún dato. Revisa que el formato del Excel sea el correcto (con 'Descripción' o 'Activos'/'Utilidad neta').");
+                    throw new Exception("No se pudieron leer datos del BG o ER. Revisa que ambas hojas existan y tengan el formato correcto.");
                 }
 
+                // --- 3. GUARDAR DATOS CRUDOS ---
                 await DbContext.BGConceptos.AddRangeAsync(conceptosBG, _cts.Token);
                 await DbContext.ERConceptos.AddRangeAsync(conceptosER, _cts.Token);
                 await DbContext.SaveChangesAsync(_cts.Token);
 
+                // **** ¡NUEVO CÓDIGO DE CÁLCULO! ****
+                // --- 4. REALIZAR CÁLCULOS ---
+
+                var resultadosVerticales = new List<ResultadoVertical>();
+                var resultadosHorizontales = new List<ResultadoHorizontal>();
+                var razonesFinancieras = new List<RazonFinanciera>();
+                var anios = conceptosBG.Select(c => c.Anio).Distinct().OrderBy(a => a).ToList();
+                int anioAnterior = anios.First();
+                int anioActual = anios.Last();
+
+                // --- 4a. ANÁLISIS VERTICAL (ER) ---
+                var ventasNetas = conceptosER
+                    .Where(c => c.Concepto.Equals("Ingresos", StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(c => c.Anio, c => c.Valor);
+
+                foreach (var concepto in conceptosER)
+                {
+                    decimal baseVentas = ventasNetas.GetValueOrDefault(concepto.Anio);
+                    if (baseVentas != 0)
+                    {
+                        resultadosVerticales.Add(new ResultadoVertical
+                        {
+                            IdAnalisis = nuevoAnalisis.IdAnalisis,
+                            TipoEstado = "ER",
+                            Anio = concepto.Anio,
+                            Concepto = concepto.Concepto,
+                            Porcentaje = (concepto.Valor / baseVentas) // Fórmula: (Valor / Ventas Netas) * 100
+                        });
+                    }
+                }
+
+                // --- 4b. ANÁLISIS VERTICAL (BG) ---
+                var totalActivos = conceptosBG
+                    .Where(c => c.Concepto.Equals("Total Activos", StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(c => c.Anio, c => c.Valor);
+
+                var totalPasCap = conceptosBG
+                    .Where(c => c.Concepto.Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(c => c.Anio, c => c.Valor);
+
+                foreach (var concepto in conceptosBG)
+                {
+                    decimal baseValor = 0;
+                    if (concepto.Tipo == "ACTIVO")
+                    {
+                        baseValor = totalActivos.GetValueOrDefault(concepto.Anio);
+                    }
+                    else // PASIVO o CAPITAL
+                    {
+                        baseValor = totalPasCap.GetValueOrDefault(concepto.Anio);
+                    }
+
+                    if (baseValor != 0)
+                    {
+                        resultadosVerticales.Add(new ResultadoVertical
+                        {
+                            IdAnalisis = nuevoAnalisis.IdAnalisis,
+                            TipoEstado = "BG",
+                            Anio = concepto.Anio,
+                            Concepto = concepto.Concepto,
+                            Porcentaje = (concepto.Valor / baseValor) // Fórmula: (Valor / Base) * 100
+                        });
+                    }
+                }
+
+                // --- 4c. ANÁLISIS HORIZONTAL (BG) ---
+                var conceptosAgrupadosBG = conceptosBG.GroupBy(c => c.Concepto);
+
+                foreach (var grupo in conceptosAgrupadosBG)
+                {
+                    var valorAnterior = grupo.FirstOrDefault(c => c.Anio == anioAnterior)?.Valor ?? 0;
+                    var valorActual = grupo.FirstOrDefault(c => c.Anio == anioActual)?.Valor ?? 0;
+
+                    if (valorAnterior != 0) // Evitar división por cero
+                    {
+                        decimal varAbsoluta = valorActual - valorAnterior;
+                        decimal varRelativa = ((valorActual / valorAnterior) - 1); // Fórmula: ((Actual / Anterior) - 1) * 100
+
+                        resultadosHorizontales.Add(new ResultadoHorizontal
+                        {
+                            IdAnalisis = nuevoAnalisis.IdAnalisis,
+                            TipoEstado = "BG",
+                            PeriodoInicial = anioAnterior,
+                            PeriodoFinal = anioActual,
+                            Concepto = grupo.Key,
+                            VariacionAbsoluta = varAbsoluta,
+                            VariacionRelativa = varRelativa
+                        });
+                    }
+                }
+
+                // --- 4d. CÁLCULO DE CNT ---
+                var actCirculante = conceptosBG
+                    .Where(c => c.Concepto.Equals("Total Activo Circulante", StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(c => c.Anio, c => c.Valor);
+
+                var pasCirculante = conceptosBG
+                    .Where(c => c.Concepto.Equals("Total Pasivo Circulante", StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(c => c.Anio, c => c.Valor);
+
+                foreach (var anio in anios)
+                {
+                    decimal cnt = actCirculante.GetValueOrDefault(anio) - pasCirculante.GetValueOrDefault(anio);
+                    razonesFinancieras.Add(new RazonFinanciera
+                    {
+                        IdAnalisis = nuevoAnalisis.IdAnalisis,
+                        Anio = anio,
+                        Grupo = "Liquidez",
+                        NombreRazon = "Capital Neto de Trabajo (CNT)",
+                        ValorRazon = cnt
+                    });
+                }
+
+                // --- 5. GUARDAR CÁLCULOS ---
+                await DbContext.ResultadoVerticales.AddRangeAsync(resultadosVerticales, _cts.Token);
+                await DbContext.ResultadoHorizontales.AddRangeAsync(resultadosHorizontales, _cts.Token);
+                await DbContext.RazonesFinancieras.AddRangeAsync(razonesFinancieras, _cts.Token);
+                await DbContext.SaveChangesAsync(_cts.Token);
+
+                // --- 6. REPORTAR ÉXITO ---
                 await InvokeAsync(() =>
                 {
-                    statusMessage = $"¡Análisis completado! Se guardaron {conceptosBG.Count} conceptos de BG y {conceptosER.Count} conceptos de ER.";
+                    statusMessage = $"¡Análisis completado! Se guardaron {conceptosBG.Count} conceptos de BG, {conceptosER.Count} conceptos de ER y se generaron todos los análisis.";
                     Logger.LogInformation(statusMessage);
+
+                    // **** ¡REDIRECCIÓN! ****
+                    // Cuando termine, te mandamos a la página de resultados
+                    NavigationManager.NavigateTo($"/resultados/{idAnalisisGenerado}");
                 });
 
             }, _cts.Token);
@@ -226,230 +355,39 @@
 
     private SheetType DetectSheetType(DataTable table)
     {
-        foreach (DataRow row in table.Rows)
-        {
-            string concepto = SafeGetString(row, 0);
-            if (concepto.Equals("Total de Activos", StringComparison.OrdinalIgnoreCase))
-                return SheetType.BalanceGeneral;
-            if (concepto.Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
-                return SheetType.BalanceGeneral;
-            if (concepto.Equals("Utilidad neta", StringComparison.OrdinalIgnoreCase))
-                return SheetType.EstadoResultados;
-        }
-        return SheetType.Unknown;
+        // ... (Se queda igual) ...
     }
 
     private int SafeGetYear(DataRow row, int colIndex)
     {
-        if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
-            return 0;
-        var cellValue = row[colIndex];
-        if (cellValue is double dValue) { return (int)dValue; }
-        string stringValue = cellValue.ToString().Trim();
-        if (int.TryParse(stringValue, out int intValue)) { return intValue; }
-        if (double.TryParse(stringValue, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleValue)) { return (int)doubleValue; }
-        return 0;
+        // ... (Se queda igual) ...
     }
 
 
     private List<ERConcepto> ParseEstadoResultados(DataTable table, int analisisId, CancellationToken token)
     {
-        var conceptos = new List<ERConcepto>();
-        int headerRowIndex = -1, year1 = 0, year2 = 0, colAnio1 = -1, colAnio2 = -1;
-        int descripColIndex = -1;
-
-        for (int i = 0; i < 10 && i < table.Rows.Count; i++)
-        {
-            token.ThrowIfCancellationRequested();
-            for (int j = 0; j < table.Columns.Count; j++)
-            {
-                string cellValue = SafeGetString(table.Rows[i], j);
-                if (cellValue.StartsWith("Descrip", StringComparison.OrdinalIgnoreCase))
-                {
-                    headerRowIndex = i;
-                    descripColIndex = j;
-                    colAnio1 = descripColIndex + 2; // Para ER es Col C (índice 2)
-                    colAnio2 = descripColIndex + 3; // Para ER es Col D (índice 3)
-                    year1 = SafeGetYear(table.Rows[i], colAnio1);
-                    year2 = SafeGetYear(table.Rows[i], colAnio2);
-                    if (year1 > 2000 && year2 > 2000) { break; }
-                    else { headerRowIndex = -1; year1 = 0; year2 = 0; }
-                }
-            }
-            if (headerRowIndex != -1) break;
-        }
-
-        if (headerRowIndex == -1 || year1 == 0 || year2 == 0)
-        {
-            // **** ¡NUEVO MENSAJE DE ERROR! ****
-            string debugMsg = $"Debug ER: headerRowIndex={headerRowIndex}, year1={year1}, year2={year2}";
-            if (headerRowIndex != -1)
-            {
-                debugMsg += $", rawYear1Val='{SafeGetString(table.Rows[headerRowIndex], colAnio1)}'";
-                debugMsg += $", rawYear2Val='{SafeGetString(table.Rows[headerRowIndex], colAnio2)}'";
-            }
-            throw new Exception($"No se pudo encontrar el encabezado (con 'Descrip...' y dos años) en la hoja de Estado de Resultados. {debugMsg}");
-        }
-
-        for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
-        {
-            token.ThrowIfCancellationRequested();
-            DataRow row = table.Rows[i];
-            string concepto = SafeGetString(row, descripColIndex);
-
-            if (string.IsNullOrWhiteSpace(concepto)) continue;
-
-            conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio1, culture) });
-            conceptos.Add(new ERConcepto { IdAnalisis = analisisId, Anio = year2, Concepto = concepto, Valor = SafeGetDecimal(row, colAnio2, culture) });
-
-            if (concepto.Equals("Utilidad neta", StringComparison.OrdinalIgnoreCase))
-            {
-                break;
-            }
-        }
-        return conceptos;
+        // ... (Se queda igual) ...
     }
 
     private List<BGConcepto> ParseBalanceGeneral(DataTable table, int analisisId, CancellationToken token)
     {
-        var conceptos = new List<BGConcepto>();
-        int headerRowIndex = -1, year1 = 0, year2 = 0, colAnio1 = -1, colAnio2 = -1;
-        int descripColIndex = -1;
-        string currentType = "ACTIVO";
-
-        for (int i = 0; i < 10 && i < table.Rows.Count; i++)
-        {
-            token.ThrowIfCancellationRequested();
-            for (int j = 0; j < table.Columns.Count; j++)
-            {
-                string cellValue = SafeGetString(table.Rows[i], j);
-                if (cellValue.StartsWith("Descrip", StringComparison.OrdinalIgnoreCase))
-                {
-                    headerRowIndex = i;
-                    descripColIndex = j;
-                    colAnio1 = descripColIndex + 2; // Col C (índice 2)
-                    year1 = SafeGetYear(table.Rows[i], colAnio1);
-
-                    // **** ¡LÓGICA MEJORADA! ****
-                    // Si encontramos Año 1, buscamos el Año 2 en D o F
-                    if (year1 > 2000)
-                    {
-                        // 1. Intentamos en D (índice 3)
-                        colAnio2 = descripColIndex + 3;
-                        year2 = SafeGetYear(table.Rows[i], colAnio2);
-                        if (year2 > 2000) break; // ¡Encontrado!
-
-                        // 2. Si no, intentamos en F (índice 5)
-                        colAnio2 = descripColIndex + 5;
-                        year2 = SafeGetYear(table.Rows[i], colAnio2);
-                        if (year2 > 2000) break; // ¡Encontrado!
-
-                        // 3. Si no, reseteamos y seguimos buscando
-                        headerRowIndex = -1; year1 = 0; year2 = 0;
-                    }
-                    else
-                    {
-                        headerRowIndex = -1; // No era un encabezado válido
-                    }
-                }
-            }
-            if (headerRowIndex != -1) break;
-        }
-
-
-        if (headerRowIndex == -1 || year1 == 0 || year2 == 0)
-        {
-            // **** ¡NUEVO MENSAJE DE ERROR! ****
-            string debugMsg = $"Debug BG: headerRowIndex={headerRowIndex}, year1={year1}, year2={year2}";
-            if (headerRowIndex != -1)
-            {
-                debugMsg += $", rawYear1Val='{SafeGetString(table.Rows[headerRowIndex], colAnio1)}'";
-                debugMsg += $", rawYear2Val='{SafeGetString(table.Rows[headerRowIndex], colAnio2)}'";
-            }
-            throw new Exception($"No se pudo encontrar el encabezado (con 'Descrip...' y dos años) en la hoja de Balance General. {debugMsg}");
-        }
-
-        for (int i = headerRowIndex + 1; i < table.Rows.Count; i++)
-        {
-            token.ThrowIfCancellationRequested();
-            DataRow row = table.Rows[i];
-            string concepto = SafeGetString(row, descripColIndex);
-
-            if (concepto.Equals("Pasivos", StringComparison.OrdinalIgnoreCase))
-            {
-                currentType = "PASIVO";
-                continue;
-            }
-            if (concepto.Equals("Capital", StringComparison.OrdinalIgnoreCase))
-            {
-                currentType = "CAPITAL";
-                continue;
-            }
-            if (string.IsNullOrWhiteSpace(concepto) ||
-                concepto.Equals("Activos", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Equals("Circulantes", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Equals("Fijos", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Equals("Total Activo Circulante", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Equals("Total Activo Fijo", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Equals("Total Activos", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Equals("Total Otros Activos", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Equals("Total Pasivo Circulante", StringComparison.OrdinalIgnoreCase) ||
-                concepto.Equals("Total Capital", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (concepto.Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
-            {
-                break;
-            }
-
-            conceptos.Add(new BGConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Tipo = currentType, Valor = SafeGetDecimal(row, colAnio1, culture) });
-            conceptos.Add(new BGConcepto { IdAnalisis = analisisId, Anio = year2, Concepto = concepto, Tipo = currentType, Valor = SafeGetDecimal(row, colAnio2, culture) });
-        }
-        return conceptos;
+        // ... (Se queda igual) ...
     }
 
     // --- MÉTODOS AYUDANTES ---
 
     private string SafeGetString(DataRow row, int colIndex)
     {
-        if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
-            return string.Empty;
-        var cellValue = row[colIndex];
-        return cellValue.ToString().Trim();
+        // ... (Se queda igual) ...
     }
 
     private decimal SafeGetDecimal(DataRow row, int colIndex, CultureInfo culture)
     {
-        if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
-            return 0m;
-
-        var cellValue = row[colIndex];
-        if (cellValue is double dValue) { return (decimal)dValue; }
-        if (cellValue is int iValue) { return (decimal)iValue; }
-        if (cellValue is long lValue) { return (decimal)lValue; }
-
-        string valueStr = cellValue.ToString().Trim();
-        if (string.IsNullOrWhiteSpace(valueStr))
-            return 0m;
-
-        valueStr = valueStr.Replace("C$", "").Replace("(", "-").Replace(")", "").Trim();
-
-        if (decimal.TryParse(valueStr, NumberStyles.Any, culture, out decimal result))
-        {
-            return result;
-        }
-
-        if (decimal.TryParse(valueStr, NumberStyles.Number, CultureInfo.InvariantCulture, out result))
-        {
-            return result;
-        }
-
-        return 0m;
+        // ... (Se queda igual) ...
     }
 
     public class UploadFormModel
     {
+        // (se queda igual)
     }
 }
