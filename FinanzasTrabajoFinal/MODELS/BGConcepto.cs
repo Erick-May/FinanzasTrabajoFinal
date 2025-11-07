@@ -25,4 +25,6 @@ public class BGConcepto
 
     [ForeignKey(nameof(IdAnalisis))]
     public AnalisisFinanciero AnalisisFinanciero { get; set; }
+
+    //Hola soy yo 
 }
