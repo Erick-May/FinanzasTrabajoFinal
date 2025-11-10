@@ -4,25 +4,36 @@
 @using FinanzasTrabajoFinal.MODELS
 @using FinanzasTrabajoFinal.Service
 @using Microsoft.EntityFrameworkCore
+@using System.Globalization
+@using System.Data
+
 @inject IDbContextFactory<FinanzasContext> DbFactory
 
 <PageTitle>Resultados del Análisis</PageTitle>
 
-@if (analisis == null && !isLoading)
-{
-    <div class="alert alert-danger">
-        <h3>Error</h3>
-        <p>No se encontró el análisis con ID @IdAnalisis.</p>
-        <a href="/">Volver al inicio</a>
-    </div>
-}
-else if (isLoading)
+@if (isLoading)
 {
     <div class="text-center p-5">
         <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
             <span class="visually-hidden">Cargando análisis...</span>
         </div>
         <h4 class="mt-3">Calculando resultados...</h4>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <h3>Error al Cargar el Análisis</h3>
+        <p>@errorMessage</p>
+        <a href="/">Volver al inicio</a>
+    </div>
+}
+else if (analisis == null)
+{
+    <div class="alert alert-warning">
+        <h3>Análisis no encontrado</h3>
+        <p>No se encontró el análisis con ID @IdAnalisis.</p>
+        <a href="/">Volver al inicio</a>
     </div>
 }
 else
@@ -38,7 +49,7 @@ else
                 <a href="/" class="btn btn-outline-secondary">Volver al Inicio</a>
             </div>
         </div>
-        
+
         <ul class="nav nav-tabs" id="analisisTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="vertical-bg-tab" data-bs-toggle="tab" data-bs-target="#vertical-bg" type="button" role="tab" aria-controls="vertical-bg" aria-selected="true">Vertical (BG)</button>
@@ -55,24 +66,24 @@ else
         </ul>
 
         <div class="tab-content" id="analisisTabsContent">
-            
+
             <div class="tab-pane fade show active" id="vertical-bg" role="tabpanel" aria-labelledby="vertical-bg-tab">
-                <TablaResultados Titulo="Análisis Vertical - Balance General" 
-                                 Años="anios" 
-                                 Resultados="resultadosVerticalesBG" 
+                <TablaResultados Titulo="Análisis Vertical - Balance General"
+                                 Años="anios"
+                                 Resultados="resultadosVerticalesBG"
                                  EsPorcentaje="true" />
             </div>
 
             <div class="tab-pane fade" id="vertical-er" role="tabpanel" aria-labelledby="vertical-er-tab">
-                <TablaResultados Titulo="Análisis Vertical - Estado de Resultados" 
-                                 Años="anios" 
-                                 Resultados="resultadosVerticalesER" 
+                <TablaResultados Titulo="Análisis Vertical - Estado de Resultados"
+                                 Años="anios"
+                                 Resultados="resultadosVerticalesER"
                                  EsPorcentaje="true" />
             </div>
 
             <div class="tab-pane fade" id="horizontal-bg" role="tabpanel" aria-labelledby="horizontal-bg-tab">
-                <TablaHorizontal Titulo="Análisis Horizontal - Balance General" 
-                                 Periodo="@($"{anioAnterior} - {anioActual}")" 
+                <TablaHorizontal Titulo="Análisis Horizontal - Balance General"
+                                 Periodo="@($"{anioAnterior} - {anioActual}")"
                                  Resultados="resultadosHorizontalesBG" />
             </div>
 
@@ -87,7 +98,7 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var ratio in capitalDeTrabajo)
+                        @foreach (var ratio in capitalDeTrabajo.OrderBy(r => r.Anio))
                         {
                             <tr>
                                 <td>@ratio.Anio</td>
@@ -107,128 +118,210 @@ else
 
     private AnalisisFinanciero? analisis;
     private bool isLoading = true;
+    private string errorMessage = "";
+
     private List<int> anios = new();
     private int anioAnterior, anioActual;
 
-    // Listas para las tablas
     private List<ResultadoCalculado> resultadosVerticalesBG = new();
     private List<ResultadoCalculado> resultadosVerticalesER = new();
     private List<ResultadoHorizontal> resultadosHorizontalesBG = new();
     private List<RazonFinanciera> capitalDeTrabajo = new();
 
+    private CultureInfo culture = new CultureInfo("es-ES");
+
     protected override async Task OnInitializedAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        // 1. Cargar el análisis principal
-        analisis = await db.AnalisisFinancieros
-            .FirstOrDefaultAsync(a => a.IdAnalisis == IdAnalisis);
-
-        if (analisis == null)
+        try
         {
-            isLoading = false;
-            return;
-        }
+            await using var db = await DbFactory.CreateDbContextAsync();
 
-        // 2. Cargar TODOS los datos crudos para este análisis
-        var conceptosBG = await db.BGConceptos
-            .Where(c => c.IdAnalisis == IdAnalisis)
-            .OrderBy(c => c.IdBgConcepto) // Mantenemos el orden original
-            .ToListAsync();
-            
-        var conceptosER = await db.ERConceptos
-            .Where(c => c.IdAnalisis == IdAnalisis)
-            .OrderBy(c => c.IdErConcepto) // Mantenemos el orden original
-            .ToListAsync();
+            analisis = await db.AnalisisFinancieros
+                .FirstOrDefaultAsync(a => a.IdAnalisis == IdAnalisis);
 
-        if (!conceptosBG.Any() || !conceptosER.Any())
-        {
-            isLoading = false;
-            // Podríamos poner un error aquí si faltan datos
-            return;
-        }
-
-        anios = conceptosBG.Select(c => c.Anio).Distinct().OrderBy(a => a).ToList();
-        anioAnterior = anios.First();
-        anioActual = anios.Last();
-
-        // --- 3. HACER LOS CÁLCULOS ---
-
-        // --- 3a. ANÁLISIS VERTICAL (ER) ---
-        var ventasNetas = conceptosER
-            .Where(c => c.Concepto.Equals("Ingresos", StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(c => c.Anio, c => c.Valor);
-
-        resultadosVerticalesER = conceptosER
-            .GroupBy(c => c.Concepto)
-            .Select(g => new ResultadoCalculado
+            if (analisis == null)
             {
-                Concepto = g.Key,
-                ValoresPorAnio = g.ToDictionary(
-                    c => c.Anio,
-                    c => (ventasNetas.GetValueOrDefault(c.Anio) == 0) ? 0 : (c.Valor / ventasNetas.GetValueOrDefault(c.Anio))
-                )
-            }).ToList();
+                isLoading = false;
+                return;
+            }
 
-        // --- 3b. ANÁLISIS VERTICAL (BG) ---
-        var totalActivos = conceptosBG
-            .Where(c => c.Concepto.Equals("Total Activos", StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(c => c.Anio, c => c.Valor);
-        
-        var totalPasCap = conceptosBG
-            .Where(c => c.Concepto.Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(c => c.Anio, c => c.Valor);
+            var conceptosBG = await db.BGConceptos
+                .Where(c => c.IdAnalisis == IdAnalisis)
+                .OrderBy(c => c.IdBgConcepto)
+                .ToListAsync();
 
-        resultadosVerticalesBG = conceptosBG
-            .GroupBy(c => c.Concepto)
-            .Select(g => new ResultadoCalculado
+            var conceptosER = await db.ERConceptos
+                .Where(c => c.IdAnalisis == IdAnalisis)
+                .OrderBy(c => c.IdErConcepto)
+                .ToListAsync();
+
+            if (!conceptosBG.Any() || !conceptosER.Any())
             {
-                Concepto = g.Key,
-                ValoresPorAnio = g.ToDictionary(
-                    c => c.Anio,
-                    c => {
-                        decimal baseValor = (c.Tipo == "ACTIVO") 
-                            ? totalActivos.GetValueOrDefault(c.Anio) 
-                            : totalPasCap.GetValueOrDefault(c.Anio);
-                        return (baseValor == 0) ? 0 : (c.Valor / baseValor);
-                    }
-                )
-            }).ToList();
+                throw new Exception("No se encontraron datos de BG o ER para este análisis. El archivo podría estar corrupto o vacío.");
+            }
 
-        // --- 3c. ANÁLISIS HORIZONTAL (BG) ---
-        resultadosHorizontalesBG = conceptosBG
-            .GroupBy(c => c.Concepto)
-            .Select(g => {
-                var valorAnterior = g.FirstOrDefault(c => c.Anio == anioAnterior)?.Valor ?? 0;
-                var valorActual = g.FirstOrDefault(c => c.Anio == anioActual)?.Valor ?? 0;
-                
-                return new ResultadoHorizontal
+            anios = conceptosBG.Select(c => c.Anio).Distinct().OrderBy(a => a).ToList();
+            if (anios.Count == 0)
+            {
+                throw new Exception("No se encontraron años en los datos del BG.");
+            }
+            else if (anios.Count == 1)
+            {
+                anioAnterior = anios.First();
+                anioActual = anios.First();
+            }
+            else
+            {
+                anioAnterior = anios.First();
+                anioActual = anios.Last();
+            }
+
+            // --- 3. HACER LOS CÁLCULOS ---
+
+            // --- 3a. ANÁLISIS VERTICAL (ER) ---
+
+            // **** ¡AQUÍ ESTÁ EL ARREGLO! ****
+            // Agregamos .Trim() para limpiar cualquier espacio basura de la BD
+            var ventasNetas = conceptosER
+                .Where(c => c.Concepto.Trim().Equals("Ingresos", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+
+            if (!ventasNetas.Any()) { throw new Exception("No se encontró la cuenta 'Ingresos' (después de Trim) para el Análisis Vertical del ER."); }
+
+            resultadosVerticalesER = conceptosER
+                .GroupBy(c => c.Concepto)
+                .Select(g => new ResultadoCalculado
                 {
                     Concepto = g.Key,
-                    VariacionAbsoluta = valorActual - valorAnterior, // (Actual - Anterior)
-                    VariacionRelativa = (valorAnterior == 0) ? 0 : ((valorActual / valorAnterior) - 1) // ((Actual / Anterior) - 1) * 100
-                };
-            }).ToList();
+                    ValoresPorAnio = g.ToDictionary(
+                        c => c.Anio,
+                        c =>
+                        {
+                            decimal baseVentas = ventasNetas.GetValueOrDefault(c.Anio);
+                            return (baseVentas == 0) ? 0 : (c.Valor / baseVentas); // (Valor / Ventas Netas)
+                        }
+                    )
+                }).ToList();
 
-        // --- 3d. CÁLCULO DE CNT ---
-        var actCirculante = conceptosBG
-            .Where(c => c.Concepto.Equals("Total Activo Circulante", StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(c => c.Anio, c => c.Valor);
-        
-        var pasCirculante = conceptosBG
-            .Where(c => c.Concepto.Equals("Total Pasivo Circulante", StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(c => c.Anio, c => c.Valor);
-        
-        foreach (var anio in anios)
-        {
-            capitalDeTrabajo.Add(new RazonFinanciera
+            // --- 3b. ANÁLISIS VERTICAL (BG) ---
+
+            // **** ¡ARREGLO AQUÍ TAMBIÉN! ****
+            var totalActivos = conceptosBG
+                .Where(c => c.Concepto.Trim().Equals("Total Activos", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+            if (!totalActivos.Any()) { throw new Exception("No se encontró la cuenta 'Total Activos' (después de Trim) para el Análisis Vertical del BG."); }
+
+            // **** ¡Y ARREGLO AQUÍ! ****
+            var totalPasCap = conceptosBG
+                .Where(c => c.Concepto.Trim().Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+            if (!totalPasCap.Any()) { throw new Exception("No se encontró la cuenta 'Total Pasivos y Capital' (después de Trim) para el Análisis Vertical del BG."); }
+
+            resultadosVerticalesBG = conceptosBG
+                .GroupBy(c => c.Concepto)
+                .Select(g => new ResultadoCalculado
+                {
+                    Concepto = g.Key,
+                    ValoresPorAnio = g.ToDictionary(
+                        c => c.Anio,
+                        c =>
+                        {
+                            decimal baseValor = (g.First().Tipo == "ACTIVO")
+                                ? totalActivos.GetValueOrDefault(c.Anio)
+                                : totalPasCap.GetValueOrDefault(c.Anio);
+                            return (baseValor == 0) ? 0 : (c.Valor / baseValor); // (Valor / Base)
+                        }
+            )
+                }).ToList();
+
+            // --- 3c. ANÁLISIS HORIZONTAL (BG) ---
+            if (anios.Count >= 2)
             {
-                Anio = anio,
-                ValorRazon = actCirculante.GetValueOrDefault(anio) - pasCirculante.GetValueOrDefault(anio) // (Activo Cte - Pasivo Cte)
-            });
+                resultadosHorizontalesBG = conceptosBG
+                    .GroupBy(c => c.Concepto)
+                    .Select(g =>
+                    {
+                        var valorAnterior = g.FirstOrDefault(c => c.Anio == anioAnterior)?.Valor ?? 0;
+                        var valorActual = g.FirstOrDefault(c => c.Anio == anioActual)?.Valor ?? 0;
+
+                        return new ResultadoHorizontal
+                        {
+                            Concepto = g.Key,
+                            VariacionAbsoluta = valorActual - valorAnterior,
+                            VariacionRelativa = (valorAnterior == 0) ? 0 : ((valorActual / valorAnterior) - 1)
+                        };
+                    }).ToList();
+            }
+
+            // --- 3d. CÁLCULO DE CNT ---
+
+            // **** ¡ARREGLO AQUÍ! ****
+            var actCirculante = conceptosBG
+                .Where(c => c.Concepto.Trim().Equals("Total Activo Circulante", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+            if (!actCirculante.Any()) { throw new Exception("No se encontró la cuenta 'Total Activo Circulante' (después de Trim) para el CNT."); }
+
+            // **** ¡Y ARREGLO AQUÍ! ****
+            var pasCirculante = conceptosBG
+                .Where(c => c.Concepto.Trim().Equals("Total Pasivo Circulante", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+            if (!pasCirculante.Any()) { throw new Exception("No se encontró la cuenta 'Total Pasivo Circulante' (después de Trim) para el CNT."); }
+
+            foreach (var anio in anios)
+            {
+                capitalDeTrabajo.Add(new RazonFinanciera
+                {
+                    Anio = anio,
+                    ValorRazon = actCirculante.GetValueOrDefault(anio) - pasCirculante.GetValueOrDefault(anio)
+                });
+            }
         }
-        
-        // --- 4. TERMINAMOS DE CARGAR ---
-        isLoading = false;
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al calcular los resultados: {ex.Message} | DETALLE: {ex.InnerException?.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // --- MÉTODOS AYUDANTES (DEJÉ SOLO LOS QUE SÍ USAMOS) ---
+
+    private string SafeGetString(DataRow row, int colIndex)
+    {
+        if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
+            return string.Empty;
+        var cellValue = row[colIndex];
+        return cellValue.ToString().Trim();
+    }
+
+    private decimal SafeGetDecimal(DataRow row, int colIndex, CultureInfo culture)
+    {
+        if (colIndex < 0 || colIndex >= row.Table.Columns.Count || row.IsNull(colIndex))
+            return 0m;
+
+        var cellValue = row[colIndex];
+        if (cellValue is double dValue) { return (decimal)dValue; }
+        if (cellValue is int iValue) { return (decimal)iValue; }
+        if (cellValue is long lValue) { return (decimal)lValue; }
+
+        string valueStr = cellValue.ToString().Trim();
+        if (string.IsNullOrWhiteSpace(valueStr))
+            return 0m;
+
+        valueStr = valueStr.Replace("C$", "").Replace("(", "-").Replace(")", "").Trim();
+
+        if (decimal.TryParse(valueStr, NumberStyles.Any, culture, out decimal result))
+        {
+            return result;
+        }
+
+        if (decimal.TryParse(valueStr, NumberStyles.Number, CultureInfo.InvariantCulture, out result))
+        {
+            return result;
+        }
+
+        return 0m;
     }
 }

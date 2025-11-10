@@ -1,6 +1,6 @@
 using FinanzasTrabajoFinal.Components;
 using FinanzasTrabajoFinal.Service;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore; // <-- Asegúrate que esté este 'using'
 
 // 1. Registra esto al inicio
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
@@ -14,19 +14,16 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("No se encontró la cadena de conexión 'DefaultConnection'. Revisa tu appsettings.json.");
 
-// Registra el DbContext
-
-
+// **** ¡ESTA ES LA LÍNEA QUE ARREGLA TODO! ****
+// Esto registra AMBOS: la Fábrica (IDbContextFactory) Y el Contexto (FinanzasContext)
 builder.Services.AddDbContextFactory<FinanzasContext>(options =>
     options.UseSqlServer(connectionString));
 
-// Registra los servicios
+// Registra tus otros servicios
 builder.Services.AddScoped<AuthService>();
-
-// ¡CAMBIO IMPORTANTE! Debe ser AddScoped para que cada usuario tenga su sesión
 builder.Services.AddScoped<UserStateService>();
 
-// Registra los componentes de Blazor (Razor Components)
+// Registra los componentes de Blazor
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
