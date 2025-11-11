@@ -126,9 +126,6 @@ else
     private List<ResultadoCalculado> resultadosVerticalesBG = new();
     private List<ResultadoCalculado> resultadosVerticalesER = new();
     private List<ResultadoHorizontal> resultadosHorizontalesBG = new();
-
-    // **** ¡CAMBIO AQUÍ! ****
-    // La lista ahora es del nuevo tipo 'CapitalesNetos'
     private List<CapitalesNetos> capitalesNetos = new();
 
     protected override async Task OnInitializedAsync()
@@ -156,10 +153,24 @@ else
 
             if (!aniosVertical.Any())
             {
-                throw new Exception("No se encontraron datos de análisis vertical para este ID.");
-            }
+                // Si no hay resultados verticales, intentamos con CNT
+                var aniosCNT = await db.CapitalesNetos
+                    .Where(r => r.IdAnalisis == IdAnalisis)
+                    .Select(r => r.Anio)
+                    .Distinct()
+                    .OrderBy(a => a)
+                    .ToListAsync();
 
-            anios = aniosVertical;
+                if (!aniosCNT.Any())
+                {
+                    throw new Exception("No se encontraron datos calculados (Verticales o CNT) para este análisis.");
+                }
+                anios = aniosCNT;
+            }
+            else
+            {
+                anios = aniosVertical;
+            }
 
             if (anios.Count == 1)
             {
@@ -172,7 +183,6 @@ else
                 anioActual = anios.Last();
             }
 
-
             // --- 2. LEER LOS CÁLCULOS DE LA BD ---
 
             // --- 2a. ANÁLISIS VERTICAL (ER) ---
@@ -180,6 +190,7 @@ else
                 .Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "ER")
                 .ToListAsync();
 
+            // Agrupamos los resultados para la tabla
             resultadosVerticalesER = verticalERData
                 .GroupBy(r => r.Concepto)
                 .Select(g => new ResultadoCalculado
@@ -211,9 +222,6 @@ else
             }
 
             // --- 2d. CÁLCULO DE CNT ---
-
-            // **** ¡CAMBIO AQUÍ! ****
-            // Leemos de la nueva tabla 'CapitalesNetos'
             capitalesNetos = await db.CapitalesNetos
                 .Where(r => r.IdAnalisis == IdAnalisis)
                 .ToListAsync();
