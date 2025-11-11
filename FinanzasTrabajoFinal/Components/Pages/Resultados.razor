@@ -17,7 +17,7 @@
         <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
             <span class="visually-hidden">Cargando análisis...</span>
         </div>
-        <h4 class="mt-3">Cargando resultados...</h4>
+        <h4 class="mt-3">Calculando resultados...</h4>
     </div>
 }
 else if (!string.IsNullOrEmpty(errorMessage))
@@ -192,7 +192,7 @@ else
 
             // Agrupamos los resultados para la tabla
             resultadosVerticalesER = verticalERData
-                .GroupBy(r => r.Concepto)
+                .GroupBy(r => r.Concepto.Trim()) // Agregamos Trim() por si acaso
                 .Select(g => new ResultadoCalculado
                 {
                     Concepto = g.Key,
@@ -206,7 +206,7 @@ else
                 .ToListAsync();
 
             resultadosVerticalesBG = verticalBGData
-                .GroupBy(r => r.Concepto)
+                .GroupBy(r => r.Concepto.Trim()) // Agregamos Trim() por si acaso
                 .Select(g => new ResultadoCalculado
                 {
                     Concepto = g.Key,
