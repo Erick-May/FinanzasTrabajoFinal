@@ -19,6 +19,7 @@ public class FinanzasContext : DbContext
     public DbSet<ResultadoHorizontal> ResultadoHorizontales { get; set; }
     public DbSet<RazonFinanciera> RazonesFinancieras { get; set; }
     public DbSet<OrigenAplicacion> OrigenAplicaciones { get; set; }
+    public DbSet<CapitalesNetos> CapitalesNetos { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

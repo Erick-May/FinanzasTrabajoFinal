@@ -9,8 +9,7 @@
 @using System.Globalization
 @using Microsoft.EntityFrameworkCore
 
-@* **** ¡EL ARREGLO! **** *@
-@* Volvemos a usar el DbContext simple *@
+@* **** ¡TU CÓDIGO BUENO! **** *@
 @inject FinanzasContext DbContext
 @inject UserStateService UserStateService
 @inject NavigationManager NavigationManager
@@ -102,8 +101,7 @@
 
     // Quitamos el StopProcessing()
 
-    // **** ¡EL ARREGLO! ****
-    // Volvemos a un HandleAnalysis simple
+    // **** ¡TU CÓDIGO BUENO! ****
     private async Task HandleAnalysis()
     {
         if (selectedFile == null || !UserStateService.IsLoggedIn)
@@ -174,9 +172,137 @@
             await DbContext.SaveChangesAsync();
 
             // --- 4. REALIZAR CÁLCULOS ---
-            // (Los cálculos se hacen en Resultados.razor, no aquí)
+            var resultadosVerticales = new List<ResultadoVertical>();
+            var resultadosHorizontales = new List<ResultadoHorizontal>();
 
-            // --- 5. REPORTAR ÉXITO Y REDIRIGIR ---
+            // **** ¡TU CAMBIO! ****
+            // Usamos la nueva clase CapitalesNetos
+            var capitalesNetos = new List<CapitalesNetos>();
+
+            var anios = conceptosBG.Select(c => c.Anio).Distinct().OrderBy(a => a).ToList();
+            int anioAnterior = anios.First();
+            int anioActual = anios.Last();
+
+            // --- 4a. ANÁLISIS VERTICAL (ER) ---
+            var ventasNetas = conceptosER
+                .Where(c => c.Concepto.Trim().Equals("Ingresos", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+            if (!ventasNetas.Any()) { throw new Exception("No se encontró la cuenta 'Ingresos' para el Análisis Vertical del ER."); }
+
+            foreach (var concepto in conceptosER)
+            {
+                decimal baseVentas = ventasNetas.GetValueOrDefault(concepto.Anio);
+                if (baseVentas != 0)
+                {
+                    resultadosVerticales.Add(new ResultadoVertical
+                    {
+                        IdAnalisis = nuevoAnalisis.IdAnalisis,
+                        TipoEstado = "ER",
+                        Anio = concepto.Anio,
+                        Concepto = concepto.Concepto,
+                        Porcentaje = (concepto.Valor / baseVentas) // Fórmula: (Valor / Ventas Netas)
+                    });
+                }
+            }
+
+            // --- 4b. ANÁLISIS VERTICAL (BG) ---
+            var totalActivos = conceptosBG
+                .Where(c => c.Concepto.Trim().Equals("Total Activos", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+            if (!totalActivos.Any()) { throw new Exception("No se encontró la cuenta 'Total Activos' para el Análisis Vertical del BG."); }
+
+            var totalPasCap = conceptosBG
+                .Where(c => c.Concepto.Trim().Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+            if (!totalPasCap.Any()) { throw new Exception("No se encontró la cuenta 'Total Pasivos y Capital' para el Análisis Vertical del BG."); }
+
+            foreach (var concepto in conceptosBG)
+            {
+                decimal baseValor = 0;
+                if (concepto.Tipo == "ACTIVO")
+                {
+                    baseValor = totalActivos.GetValueOrDefault(concepto.Anio);
+                }
+                else // PASIVO o CAPITAL
+                {
+                    baseValor = totalPasCap.GetValueOrDefault(concepto.Anio);
+                }
+
+                if (baseValor != 0)
+                {
+                    resultadosVerticales.Add(new ResultadoVertical
+                    {
+                        IdAnalisis = nuevoAnalisis.IdAnalisis,
+                        TipoEstado = "BG",
+                        Anio = concepto.Anio,
+                        Concepto = concepto.Concepto,
+                        Porcentaje = (concepto.Valor / baseValor) // Fórmula: (Valor / Base)
+                    });
+                }
+            }
+
+            // --- 4c. ANÁLISIS HORIZONTAL (BG) ---
+            var conceptosAgrupadosBG = conceptosBG.GroupBy(c => c.Concepto);
+
+            foreach (var grupo in conceptosAgrupadosBG)
+            {
+                var valorAnterior = grupo.FirstOrDefault(c => c.Anio == anioAnterior)?.Valor ?? 0;
+                var valorActual = grupo.FirstOrDefault(c => c.Anio == anioActual)?.Valor ?? 0;
+
+                if (valorAnterior != 0) // Evitar división por cero
+                {
+                    decimal varAbsoluta = valorActual - valorAnterior;
+                    decimal varRelativa = ((valorActual / valorAnterior) - 1); // Fórmula: ((Actual / Anterior) - 1)
+
+                    resultadosHorizontales.Add(new ResultadoHorizontal
+                    {
+                        IdAnalisis = nuevoAnalisis.IdAnalisis,
+                        TipoEstado = "BG",
+                        PeriodoInicial = anioAnterior,
+                        PeriodoFinal = anioActual,
+                        Concepto = grupo.Key,
+                        VariacionAbsoluta = varAbsoluta,
+                        VariacionRelativa = varRelativa
+                    });
+                }
+            }
+
+            // --- 4d. CÁLCULO DE CNT ---
+            // **** ¡TU CAMBIO! ****
+            var actCirculante = conceptosBG
+                .Where(c => c.Concepto.Trim().Equals("Total Activo Circulante", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+            if (!actCirculante.Any()) { throw new Exception("No se encontró la cuenta 'Total Activo Circulante' para el CNT."); }
+
+            var pasCirculante = conceptosBG
+                .Where(c => c.Concepto.Trim().Equals("Total Pasivo Circulante", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(c => c.Anio, c => c.Valor);
+            if (!pasCirculante.Any()) { throw new Exception("No se encontró la cuenta 'Total Pasivo Circulante' para el CNT."); }
+
+            foreach (var anio in anios)
+            {
+                decimal cnt = actCirculante.GetValueOrDefault(anio) - pasCirculante.GetValueOrDefault(anio);
+
+                // **** ¡TU CAMBIO! ****
+                capitalesNetos.Add(new CapitalesNetos
+                {
+                    IdAnalisis = nuevoAnalisis.IdAnalisis,
+                    Anio = anio,
+                    CNT = cnt,
+                    CNO = null // Lo dejamos null por ahora
+                });
+            }
+
+            // --- 5. GUARDAR CÁLCULOS ---
+            await DbContext.ResultadoVerticales.AddRangeAsync(resultadosVerticales);
+            await DbContext.ResultadoHorizontales.AddRangeAsync(resultadosHorizontales);
+
+            // **** ¡TU CAMBIO! ****
+            await DbContext.CapitalesNetos.AddRangeAsync(capitalesNetos); // Guardamos en la nueva tabla
+
+            await DbContext.SaveChangesAsync();
+
+            // --- 6. REPORTAR ÉXITO Y REDIRIGIR ---
             statusMessage = $"¡Éxito! Se guardaron {conceptosBG.Count} conceptos de BG y {conceptosER.Count} conceptos de ER.";
             Logger.LogInformation(statusMessage);
 
@@ -188,7 +314,6 @@
             errorMessage = $"Error: {ex.Message} | DETALLE INTERNO: {ex.InnerException?.Message}";
             Logger.LogError(ex, "Error en HandleAnalysis");
 
-            // Rollback si algo falló
             if (nuevoAnalisis != null)
             {
                 DbContext.AnalisisFinancieros.Remove(nuevoAnalisis);
@@ -203,7 +328,6 @@
     }
 
     // --- MÉTODOS DE PARSEO ---
-    // (Quitamos el CancellationToken de los parámetros)
 
     private enum SheetType { Unknown, BalanceGeneral, EstadoResultados }
 

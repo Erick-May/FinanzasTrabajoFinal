@@ -7,7 +7,7 @@
         <thead class="table-light">
             <tr>
                 <th>Concepto</th>
-                @foreach (var anio in Años.OrderBy(a => a))
+                @foreach (var anio in Anios.OrderBy(a => a))
                 {
                     <th class="text-end">@anio</th>
                 }
@@ -18,7 +18,7 @@
             {
                 <tr>
                     <td>@item.Concepto</td>
-                    @foreach (var anio in Años.OrderBy(a => a))
+                    @foreach (var anio in Anios.OrderBy(a => a))
                     {
                         var valor = item.ValoresPorAnio.GetValueOrDefault(anio);
                         <td class="text-end">
@@ -44,7 +44,7 @@
     public string Titulo { get; set; } = "Resultados";
 
     [Parameter]
-    public List<int> Años { get; set; } = new();
+    public List<int> Anios { get; set; } = new();
 
     [Parameter]
     public List<ResultadoCalculado> Resultados { get; set; } = new();
