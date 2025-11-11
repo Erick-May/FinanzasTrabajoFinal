@@ -10,7 +10,7 @@
 @using Microsoft.EntityFrameworkCore
 
 @* Usamos la inyección simple que SÍ te funcionaba *@
-@inject FinanzasContext DbContext
+@inject IDbContextFactory<FinanzasContext> DbFactory
 @inject UserStateService UserStateService
 @inject NavigationManager NavigationManager
 @inject ILogger<Upload> Logger
@@ -103,6 +103,7 @@
 
         try
         {
+            await using var db = await DbFactory.CreateDbContextAsync();
             // 1. Crear Análisis
             nuevoAnalisis = new AnalisisFinanciero
             {
@@ -110,8 +111,8 @@
                 NombreArchivo = selectedFile.Name,
                 FechaAnalisis = DateTime.Now
             };
-            DbContext.AnalisisFinancieros.Add(nuevoAnalisis);
-            await DbContext.SaveChangesAsync();
+            db.AnalisisFinancieros.Add(nuevoAnalisis);
+            await db.SaveChangesAsync();
             idAnalisisGenerado = nuevoAnalisis.IdAnalisis;
 
             var conceptosBG = new List<BGConcepto>();
@@ -149,9 +150,9 @@
             }
 
             // 3. Guardar Datos Crudos
-            await DbContext.BGConceptos.AddRangeAsync(conceptosBG);
-            await DbContext.ERConceptos.AddRangeAsync(conceptosER);
-            await DbContext.SaveChangesAsync();
+            await db.BGConceptos.AddRangeAsync(conceptosBG);
+            await db.ERConceptos.AddRangeAsync(conceptosER);
+            await db.SaveChangesAsync();
 
             // 4. CALCULAR RESULTADOS (Vertical, Horizontal y CNT)
             var resultadosVerticales = new List<ResultadoVertical>();
@@ -253,13 +254,13 @@
             }
 
             // 5. Guardar Cálculos
-            await DbContext.ResultadoVerticales.AddRangeAsync(resultadosVerticales);
-            await DbContext.ResultadoHorizontales.AddRangeAsync(resultadosHorizontales);
+            await db.ResultadoVerticales.AddRangeAsync(resultadosVerticales);
+            await db.ResultadoHorizontales.AddRangeAsync(resultadosHorizontales);
 
             // **** AQUÍ GUARDAMOS LA NUEVA TABLA ****
-            await DbContext.CapitalesNetos.AddRangeAsync(capitalesNetos);
+            await db.CapitalesNetos.AddRangeAsync(capitalesNetos);
 
-            await DbContext.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
             // 6. Redirigir
             statusMessage = "¡Análisis completado!";
@@ -269,11 +270,26 @@
         {
             statusMessage = "";
             errorMessage = $"Error: {ex.Message} | {ex.InnerException?.Message}";
-            Logger.LogError(ex, "Error en HandleAnalysis");
-            if (nuevoAnalisis != null)
+            Logger.LogError(ex, "Error en HandleAnalysis"); 
+
+    // Verificamos si el análisis se alcanzó a crear en la BD
+    // (Tu variable 'idAnalisisGenerado' nos sirve para esto)
+    if (idAnalisisGenerado > 0 && nuevoAnalisis != null)
             {
-                DbContext.AnalisisFinancieros.Remove(nuevoAnalisis);
-                await DbContext.SaveChangesAsync();
+                try
+                {
+                    // ¡ARREGLO! Creamos un nuevo contexto SOLO para borrar
+                    await using var rollbackDb = await DbFactory.CreateDbContextAsync();
+
+                    // Usamos el nuevo 'rollbackDb'
+                    rollbackDb.AnalisisFinancieros.Remove(nuevoAnalisis); 
+                    await rollbackDb.SaveChangesAsync(); 
+        }
+                catch (Exception rollbackEx)
+                {
+                    // Si hasta el borrado falla, solo lo registramos
+                    Logger.LogError(rollbackEx, "Error al intentar hacer rollback del análisis");
+                }
             }
         }
         finally
