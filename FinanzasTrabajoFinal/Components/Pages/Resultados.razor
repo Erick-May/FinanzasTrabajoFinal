@@ -50,44 +50,44 @@ else
             </div>
         </div>
 
-        <ul class="nav nav-tabs" id="analisisTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="vertical-bg-tab" data-bs-toggle="tab" data-bs-target="#vertical-bg" type="button" role="tab" aria-controls="vertical-bg" aria-selected="true">Vertical (BG)</button>
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <button class="@GetButtonClass("vertical-bg")" @onclick="@(() => SetActiveTab("vertical-bg"))" type="button">Vertical (BG)</button>
             </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="vertical-er-tab" data-bs-toggle="tab" data-bs-target="#vertical-er" type="button" role="tab" aria-controls="vertical-er" aria-selected="false">Vertical (ER)</button>
+            <li class="nav-item">
+                <button class="@GetButtonClass("vertical-er")" @onclick="@(() => SetActiveTab("vertical-er"))" type="button">Vertical (ER)</button>
             </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="horizontal-bg-tab" data-bs-toggle="tab" data-bs-target="#horizontal-bg" type="button" role="tab" aria-controls="horizontal-bg" aria-selected="false">Horizontal (BG)</button>
+            <li class="nav-item">
+                <button class="@GetButtonClass("horizontal-bg")" @onclick="@(() => SetActiveTab("horizontal-bg"))" type="button">Horizontal (BG)</button>
             </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="cnt-tab" data-bs-toggle="tab" data-bs-target="#cnt" type="button" role="tab" aria-controls="cnt" aria-selected="false">Capital de Trabajo (CNT)</button>
+            <li class="nav-item">
+                <button class="@GetButtonClass("cnt")" @onclick="@(() => SetActiveTab("cnt"))" type="button">Capital de Trabajo (CNT)</button>
             </li>
         </ul>
 
-        <div class="tab-content" id="analisisTabsContent">
+        <div class="tab-content">
 
-            <div class="tab-pane fade show active" id="vertical-bg" role="tabpanel" aria-labelledby="vertical-bg-tab">
+            <div class="@GetPaneClass("vertical-bg")">
                 <TablaResultados Titulo="Análisis Vertical - Balance General"
-                                 Años="anios"
+                                 Anios="anios"
                                  Resultados="resultadosVerticalesBG"
                                  EsPorcentaje="true" />
             </div>
 
-            <div class="tab-pane fade" id="vertical-er" role="tabpanel" aria-labelledby="vertical-er-tab">
+            <div class="@GetPaneClass("vertical-er")">
                 <TablaResultados Titulo="Análisis Vertical - Estado de Resultados"
-                                 Años="anios"
+                                 Anios="anios"
                                  Resultados="resultadosVerticalesER"
                                  EsPorcentaje="true" />
             </div>
 
-            <div class="tab-pane fade" id="horizontal-bg" role="tabpanel" aria-labelledby="horizontal-bg-tab">
+            <div class="@GetPaneClass("horizontal-bg")">
                 <TablaHorizontal Titulo="Análisis Horizontal - Balance General"
                                  Periodo="@($"{anioAnterior} - {anioActual}")"
                                  Resultados="resultadosHorizontalesBG" />
             </div>
 
-            <div class="tab-pane fade p-3" id="cnt" role="tabpanel" aria-labelledby="cnt-tab">
+            <div class="@GetPaneClass("cnt") p-3">
                 <h4 class="mt-2">Capital Neto de Trabajo (CNT)</h4>
                 <p>Calculado como: (Total Activo Circulante - Total Pasivo Circulante)</p>
                 <table class="table table-sm table-bordered" style="max-width: 600px;">
@@ -109,6 +109,7 @@ else
                 </table>
             </div>
         </div>
+
     </div>
 }
 
@@ -126,6 +127,29 @@ else
     private List<ResultadoCalculado> resultadosVerticalesER = new();
     private List<ResultadoHorizontal> resultadosHorizontalesBG = new();
     private List<CapitalesNetos> capitalesNetos = new();
+
+    // --- AÑADIDO: CÓDIGO PARA CONTROLAR LAS PESTAÑAS (TABS) ---
+    private string activeTabId = "vertical-bg"; // ID de la pestaña activa por defecto
+
+    // Método para cambiar la pestaña activa
+    private void SetActiveTab(string tabId)
+    {
+        activeTabId = tabId;
+    }
+
+    // Método para darle la clase CSS correcta al BOTÓN
+    private string GetButtonClass(string tabId)
+    {
+        return tabId == activeTabId ? "nav-link active" : "nav-link";
+    }
+
+    // Método para darle la clase CSS correcta al CONTENIDO
+    private string GetPaneClass(string tabId)
+    {
+        return tabId == activeTabId ? "tab-pane fade show active" : "tab-pane fade";
+    }
+    // --- FIN DEL CÓDIGO AÑADIDO ---
+
 
     // --- ESTE ES EL MÉTODO ORIGINAL, PERO ARREGLADO ---
     protected override async Task OnInitializedAsync()

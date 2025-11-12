@@ -22,7 +22,7 @@
                         @item.VariacionAbsoluta.ToString("N2")
                     </td>
                     <td class="text-end @(item.VariacionRelativa < 0 ? "text-danger" : "text-success")">
-                        @item.VariacionRelativa.ToString("P2")
+                        @item.VariacionRelativa.ToString("N2") %
                     </td>
                 </tr>
             }

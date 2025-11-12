@@ -188,10 +188,10 @@
 
             // 4b. Vertical BG
             var totalActivos = conceptosBG
-                .Where(c => c.Concepto.Trim().Equals("Total Activos", StringComparison.OrdinalIgnoreCase))
+                .Where(c => c.Concepto.Trim().Contains("Total Activos") || c.Concepto.Trim().Contains("Total de Activos"))
                 .ToDictionary(c => c.Anio, c => c.Valor);
             var totalPasCap = conceptosBG
-                .Where(c => c.Concepto.Trim().Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
+                .Where(c => c.Concepto.Trim().Contains("Total Pasivos y Capital"))
                 .ToDictionary(c => c.Anio, c => c.Valor);
 
             foreach (var concepto in conceptosBG)
@@ -394,11 +394,25 @@
             string concepto = SafeGetString(row, descripColIndex);
             if (concepto.Equals("Pasivos", StringComparison.OrdinalIgnoreCase)) { currentType = "PASIVO"; continue; }
             if (concepto.Equals("Capital", StringComparison.OrdinalIgnoreCase)) { currentType = "CAPITAL"; continue; }
-            if (string.IsNullOrWhiteSpace(concepto) || concepto.StartsWith("Activos") || concepto.StartsWith("Circulantes") || concepto.StartsWith("Fijos")) continue;
-            if (concepto.Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase)) break;
+            // ARREGLO 1: Modificamos la línea 245 para que NO descarte los totales.
+            if (string.IsNullOrWhiteSpace(concepto) ||
+                (concepto.StartsWith("Activos") && !concepto.Contains("Total")) || // <- Solo descarta "Activos" si NO es "Total Activos"
+                (concepto.StartsWith("Pasivos") && !concepto.Contains("Total")) || // <- (Añadido por seguridad)
+                concepto.StartsWith("Circulantes") ||
+                concepto.StartsWith("Fijos") ||
+                concepto.StartsWith("Capital") && !concepto.Contains("Total")) // <- (Añadido por seguridad)
+            {
+                continue;
+            }
 
+            // ARREGLO 2: Invertimos el orden. Primero guardamos, LUEGO hacemos break.
             conceptos.Add(new BGConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Tipo = currentType, Valor = SafeGetDecimal(row, colAnio1, culture) });
             conceptos.Add(new BGConcepto { IdAnalisis = analisisId, Anio = year2, Concepto = concepto, Tipo = currentType, Valor = SafeGetDecimal(row, colAnio2, culture) });
+
+            if (concepto.Equals("Total Pasivos y Capital", StringComparison.OrdinalIgnoreCase))
+            {
+                break; // Ahora el 'break' está DESPUÉS de guardar.
+            }
         }
         return conceptos;
     }
