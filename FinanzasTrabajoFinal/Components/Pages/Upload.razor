@@ -264,7 +264,7 @@
 
             // 6. Redirigir
             statusMessage = "¡Análisis completado!";
-            NavigationManager.NavigateTo($"/resultados/{idAnalisisGenerado}");
+           
         }
         catch (Exception ex)
         {
@@ -296,6 +296,11 @@
         {
             isProcessing = false;
             StateHasChanged();
+        }
+
+        if (idAnalisisGenerado > 0 && string.IsNullOrEmpty(errorMessage))
+        {
+            NavigationManager.NavigateTo($"/resultados/{idAnalisisGenerado}");
         }
     }
 

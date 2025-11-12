@@ -142,7 +142,21 @@
 
     private async void HandleUserStateChange()
     {
-        await InvokeAsync(StateHasChanged);
+        try
+        {
+            // InvokeAsync puede fallar si el componente ya no existe
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Si el objeto ya se destruyó, no hacemos nada.
+            // Esto evita que el error rompa el circuito.
+        }
+        catch (Exception ex)
+        {
+            // Opcional: registrar cualquier otro error inesperado
+            Console.WriteLine($"Error en HandleUserStateChange: {ex.Message}");
+        }
     }
 
     public void Dispose()

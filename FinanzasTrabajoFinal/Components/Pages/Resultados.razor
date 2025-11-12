@@ -119,7 +119,6 @@ else
     private AnalisisFinanciero? analisis;
     private bool isLoading = true;
     private string errorMessage = "";
-
     private List<int> anios = new();
     private int anioAnterior, anioActual;
 
@@ -128,13 +127,14 @@ else
     private List<ResultadoHorizontal> resultadosHorizontalesBG = new();
     private List<CapitalesNetos> capitalesNetos = new();
 
+    // --- ESTE ES EL MÉTODO ORIGINAL, PERO ARREGLADO ---
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            // Usamos UNA SOLA CONEXIÓN, como al principio
             await using var db = await DbFactory.CreateDbContextAsync();
 
-            // 1. Cargar el análisis principal
             analisis = await db.AnalisisFinancieros
                 .FirstOrDefaultAsync(a => a.IdAnalisis == IdAnalisis);
 
@@ -144,11 +144,7 @@ else
                 return;
             }
 
-            // --- ¡AQUÍ ESTÁ EL ARREGLO! ---
-            // Ya no leemos BGConcepto ni ERConcepto.
-            // Leemos los resultados que 'Upload.razor' YA calculó.
-
-            // 2. Cargar Años (de la tabla vertical, que siempre tiene datos)
+            // 1. Cargar Años
             var aniosVertical = await db.ResultadoVerticales
                 .Where(r => r.IdAnalisis == IdAnalisis)
                 .Select(r => r.Anio)
@@ -158,7 +154,7 @@ else
 
             if (!aniosVertical.Any())
             {
-                // Si no hay resultados verticales, intentamos con CNT
+                // Si no hay verticales, busca en CNT
                 var aniosCNT = await db.CapitalesNetos
                     .Where(r => r.IdAnalisis == IdAnalisis)
                     .Select(r => r.Anio)
@@ -177,61 +173,57 @@ else
                 anios = aniosVertical;
             }
 
+            // (Asignar años)
             if (anios.Count == 1)
             {
                 anioAnterior = anios.First();
                 anioActual = anios.First();
             }
-            else if (anios.Count > 1)
+            else
             {
                 anioAnterior = anios.First();
                 anioActual = anios.Last();
             }
-            else // No hay años
-            {
-                throw new Exception("No se encontraron años en los datos del análisis.");
-            }
 
+            // --- 2. LEER LOS CÁLCULOS (Todo en la misma conexión) ---
 
-            // --- 3. LEER LOS CÁLCULOS DE LA BD ---
-
-            // --- 3a. ANÁLISIS VERTICAL (ER) ---
+            // --- 2a. ANÁLISIS VERTICAL (ER) ---
             var verticalERData = await db.ResultadoVerticales
                 .Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "ER")
                 .ToListAsync();
 
-            // Agrupamos los resultados para la tabla
             resultadosVerticalesER = verticalERData
-                .GroupBy(r => r.Concepto.Trim()) // Agregamos Trim() por si acaso
+                .GroupBy(r => r.Concepto.Trim())
                 .Select(g => new ResultadoCalculado
                 {
                     Concepto = g.Key,
+                    // *** ¡LA CORRECCIÓN CLAVE QUE SÍ FUNCIONÓ! ***
                     ValoresPorAnio = g.GroupBy(r => r.Anio).ToDictionary(g_anio => g_anio.Key, g_anio => g_anio.First().Porcentaje)
                 }).ToList();
 
-
-            // --- 3b. ANÁLISIS VERTICAL (BG) ---
+            // --- 2b. ANÁLISIS VERTICAL (BG) ---
             var verticalBGData = await db.ResultadoVerticales
                 .Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "BG")
                 .ToListAsync();
 
             resultadosVerticalesBG = verticalBGData
-                .GroupBy(r => r.Concepto.Trim()) // Agregamos Trim() por si acaso
+                .GroupBy(r => r.Concepto.Trim())
                 .Select(g => new ResultadoCalculado
                 {
                     Concepto = g.Key,
+                    // *** ¡LA CORRECCIÓN CLAVE QUE SÍ FUNCIONÓ! ***
                     ValoresPorAnio = g.GroupBy(r => r.Anio).ToDictionary(g_anio => g_anio.Key, g_anio => g_anio.First().Porcentaje)
                 }).ToList();
 
-            // --- 3c. ANÁLISIS HORIZONTAL (BG) ---
-            if (anios.Count >= 2) // Solo leemos si hay dos años
+            // --- 2c. ANÁLISIS HORIZONTAL (BG) ---
+            if (anios.Count >= 2)
             {
                 resultadosHorizontalesBG = await db.ResultadoHorizontales
                     .Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "BG")
                     .ToListAsync();
             }
 
-            // --- 3d. CÁLCULO DE CNT ---
+            // --- 2d. CÁLCULO DE CNT ---
             capitalesNetos = await db.CapitalesNetos
                 .Where(r => r.IdAnalisis == IdAnalisis)
                 .ToListAsync();
