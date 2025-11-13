@@ -253,28 +253,187 @@
                 });
             }
 
+            // --- 4e. CALCULAR ESTADO DE ORIGEN Y APLICACIÓN (EOAF) ---
+            var origenAplicacionLista = new List<OrigenAplicacion>();
+
+            // Recorremos los conceptos agrupados que ya teníamos
+            foreach (var grupo in conceptosAgrupadosBG)
+            {
+                string concepto = grupo.Key;
+                string tipo = grupo.First().Tipo; // "ACTIVO", "PASIVO", "CAPITAL"
+
+                // OMITIR TOTALES (Tu Regla #2)
+                if (concepto.StartsWith("Total", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var valorAnterior = grupo.FirstOrDefault(c => c.Anio == anioAnterior)?.Valor ?? 0;
+                var valorActual = grupo.FirstOrDefault(c => c.Anio == anioActual)?.Valor ?? 0;
+                decimal variacion = valorActual - valorAnterior;
+
+                // Si no hay variación, no se añade
+                if (variacion == 0)
+                {
+                    continue;
+                }
+
+                // TU REGLA #1 y #5: DEPRECIACIÓN
+                if (concepto.Contains("Depreciacion Acumulada", StringComparison.OrdinalIgnoreCase))
+                {
+                    origenAplicacionLista.Add(new OrigenAplicacion
+                    {
+                        IdAnalisis = nuevoAnalisis.IdAnalisis,
+                        PeriodoInicial = anioAnterior,
+                        PeriodoFinal = anioActual,
+                        Concepto = "Depreciación del Ejercicio", // Nombre limpio
+                        Flujo = "ORIGEN", // Siempre Origen
+                        Valor = Math.Abs(variacion) // Valor Positivo
+                    });
+                    continue; // Pasamos al siguiente concepto
+                }
+
+                // TU REGLA GENERAL DE CLASIFICACIÓN
+                string flujo = "";
+                if (tipo == "ACTIVO")
+                {
+                    flujo = (variacion > 0) ? "APLICACION" : "ORIGEN";
+                }
+                else if (tipo == "PASIVO" || tipo == "CAPITAL")
+                {
+                    flujo = (variacion > 0) ? "ORIGEN" : "APLICACION";
+                }
+
+                origenAplicacionLista.Add(new OrigenAplicacion
+                {
+                    IdAnalisis = nuevoAnalisis.IdAnalisis,
+                    PeriodoInicial = anioAnterior,
+                    PeriodoFinal = anioActual,
+                    Concepto = concepto,
+                    Flujo = flujo,
+                    Valor = Math.Abs(variacion) // TU REGLA: Siempre valor absoluto
+                });
+            }
+
+            //Cálculos (EOAF)
+            await db.OrigenAplicaciones.AddRangeAsync(origenAplicacionLista);
+
+            // --- 4f. CALCULAR RAZONES FINANCIERAS ---
+            var listaRazones = new List<RazonFinanciera>();
+
+            // Identificamos los años que tienen AMBOS (BG y ER)
+            var aniosBG = conceptosBG.Select(c => c.Anio).Distinct();
+            var aniosER = conceptosER.Select(c => c.Anio).Distinct();
+            var aniosCompletos = aniosBG.Intersect(aniosER);
+
+            foreach (var anio in aniosCompletos)
+            {
+                var bg = conceptosBG.Where(c => c.Anio == anio);
+                var er = conceptosER.Where(c => c.Anio == anio);
+
+                // --- 1. Razones de Liquidez ---
+                decimal valorActCirculante = GetBGVal(bg, new[] { "Total Activo Circulante", "Total de Activo Circulante" });
+                decimal valorPasCirculante = GetBGVal(bg, new[] { "Total Pasivo Circulante", "Total de Pasivo Circulante" });
+                decimal inventarios = GetBGVal(bg, new[] { "Inventarios", "Inventario de Repuestos y Accesorios" });
+
+                decimal razonCirculante = SafeDivide(valorActCirculante, valorPasCirculante);
+                decimal razonRapida = SafeDivide(valorActCirculante - inventarios, valorPasCirculante);
+
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Liquidez", NombreRazon = "Razón Circulante", ValorRazon = razonCirculante });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Liquidez", NombreRazon = "Razón Rápida", ValorRazon = razonRapida });
+
+                // --- 2. Razones de Actividad ---
+                decimal costoVentas = GetERVal(er, new[] { "Costos", "Costo de Bienes Vendidos", "Costos de ventas de bienes y servicios" });
+                decimal cuentasCobrar = GetBGVal(bg, new[] { "Cuentas y Documentos Por Cobrar", "Cuentas por Cobrar" });
+                decimal ventas = GetERVal(er, new[] { "Ingresos", "Ventas", "Ventas Netas", "Ingresos Operacionales" });
+                decimal activosFijosNetos = GetBGVal(bg, new[] { "Activos fijos netos", "Total Activos Fijos", "Total de Activos Fijos", "Total Activo Fijo" });
+                decimal activosTotales = GetBGVal(bg, new[] { "Total Activos", "Total de Activos" });
+
+                decimal rotInventarios = SafeDivide(costoVentas, inventarios);
+                decimal rotCuentasCobrar = SafeDivide(ventas, cuentasCobrar);
+                decimal periodoCobro = SafeDivide(360, rotCuentasCobrar);
+                decimal rotActivosFijos = SafeDivide(ventas, activosFijosNetos);
+                decimal rotActivosTotales = SafeDivide(ventas, activosTotales);
+
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Actividad", NombreRazon = "Rotación de Inventarios", ValorRazon = rotInventarios });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Actividad", NombreRazon = "Rotación de Cuentas por Cobrar", ValorRazon = rotCuentasCobrar });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Actividad", NombreRazon = "Periodo Promedio de Cobro", ValorRazon = periodoCobro });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Actividad", NombreRazon = "Rotación de Activos Fijos", ValorRazon = rotActivosFijos });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Actividad", NombreRazon = "Rotación de Activos Totales", ValorRazon = rotActivosTotales });
+
+                // --- Datos para Endeudamiento y Rentabilidad ---
+                decimal utilidadBruta = GetERVal(er, new[] { "Utilidad Bruta" });
+                decimal gastosOperativos = GetERVal(er, new[] { "Gastos", "Gastos de ventas y administrativos", "Gastos Operativos" });
+                decimal utilidadOperativa = utilidadBruta - gastosOperativos; // Calculada
+                decimal gastoIntereses = GetERVal(er, new[] { "Gasto por Intereses", "Gastos Financieros", "Intereses Pagados" });
+
+                // --- 3. Razones de Endeudamiento ---
+                decimal capitalNeto = GetBGVal(bg, new[] { "Total Capital", "Patrimonio Neto", "Capital Contable", "Total Patrimonio", "Total Capital Contable" });
+
+                // ++++++ ¡AQUÍ ESTÁ EL ARREGLO! LÓGICA SIMPLE ++++++
+                // 1. Buscamos los valores que SÍ existen
+                decimal totalPasivos = GetBGVal(bg, new[] { "Total Pasivos", "Total de Pasivos" });
+                decimal pasivoNoCirculante = GetBGVal(bg, new[] { "Total Pasivo No Circulante", "Total de Pasivo No Circulante", "Pasivos No Circulantes" });
+
+                // 2. Si falta "Total Pasivos", lo calculamos
+                if (totalPasivos == 0 && (valorPasCirculante != 0 || pasivoNoCirculante != 0))
+                {
+                    totalPasivos = valorPasCirculante + pasivoNoCirculante;
+                }
+
+                // 3. Si falta "Pasivo No Circulante", lo calculamos
+                if (pasivoNoCirculante == 0 && totalPasivos != 0)
+                {
+                    pasivoNoCirculante = totalPasivos - valorPasCirculante;
+                }
+                // ++++++ FIN DEL ARREGLO ++++++
+
+                // 4. Ahora calculamos las razones
+                decimal razonEndeudamiento = SafeDivide(totalPasivos, activosTotales);
+                // 5. Aplicamos tu regla de Absoluto ANTES de dividir
+                decimal razonPasivoCapital = SafeDivide(Math.Abs(pasivoNoCirculante), capitalNeto); // ¡Tu fórmula corregida!
+                decimal rotacionIntereses = SafeDivide(utilidadOperativa, gastoIntereses);
+
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Endeudamiento", NombreRazon = "Razón de Endeudamiento", ValorRazon = razonEndeudamiento });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Endeudamiento", NombreRazon = "Razón Pasivo / Capital", ValorRazon = razonPasivoCapital });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Endeudamiento", NombreRazon = "Rotación de Intereses a Utilidades", ValorRazon = rotacionIntereses });
+
+                // --- 4. Razones de Rentabilidad (¡en %!) ---
+                decimal utilidadNeta = GetERVal(er, new[] { "Utilidad neta", "Utilidad o Perdida del Ejercicio", "Resultado del Ejercicio", "Beneficio Neto" });
+
+                decimal mub = SafeDivide(utilidadBruta, ventas) * 100;
+                decimal muo = SafeDivide(utilidadOperativa, ventas) * 100;
+                decimal margenNeto = SafeDivide(utilidadNeta, ventas) * 100;
+                decimal roa = SafeDivide(utilidadNeta, activosTotales) * 100;
+
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Margen de Utilidad Bruta (MUB)", ValorRazon = mub });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Margen de Utilidad Operativa (MUO)", ValorRazon = muo });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Margen de Utilidad Neta", ValorRazon = margenNeto });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Rentabilidad sobre el Activo (ROA)", ValorRazon = roa });
+            }
+
+            //Cálculos (Razones)
+            await db.RazonesFinancieras.AddRangeAsync(listaRazones);
             // 5. Guardar Cálculos
             await db.ResultadoVerticales.AddRangeAsync(resultadosVerticales);
             await db.ResultadoHorizontales.AddRangeAsync(resultadosHorizontales);
-
-            // **** AQUÍ GUARDAMOS LA NUEVA TABLA ****
             await db.CapitalesNetos.AddRangeAsync(capitalesNetos);
 
             await db.SaveChangesAsync();
 
             // 6. Redirigir
             statusMessage = "¡Análisis completado!";
-           
+
         }
         catch (Exception ex)
         {
             statusMessage = "";
             errorMessage = $"Error: {ex.Message} | {ex.InnerException?.Message}";
-            Logger.LogError(ex, "Error en HandleAnalysis"); 
+            Logger.LogError(ex, "Error en HandleAnalysis");
 
-    // Verificamos si el análisis se alcanzó a crear en la BD
-    // (Tu variable 'idAnalisisGenerado' nos sirve para esto)
-    if (idAnalisisGenerado > 0 && nuevoAnalisis != null)
+            // Verificamos si el análisis se alcanzó a crear en la BD
+            // (Tu variable 'idAnalisisGenerado' nos sirve para esto)
+            if (idAnalisisGenerado > 0 && nuevoAnalisis != null)
             {
                 try
                 {
@@ -282,9 +441,9 @@
                     await using var rollbackDb = await DbFactory.CreateDbContextAsync();
 
                     // Usamos el nuevo 'rollbackDb'
-                    rollbackDb.AnalisisFinancieros.Remove(nuevoAnalisis); 
-                    await rollbackDb.SaveChangesAsync(); 
-        }
+                    rollbackDb.AnalisisFinancieros.Remove(nuevoAnalisis);
+                    await rollbackDb.SaveChangesAsync();
+                }
                 catch (Exception rollbackEx)
                 {
                     // Si hasta el borrado falla, solo lo registramos
@@ -394,16 +553,21 @@
             string concepto = SafeGetString(row, descripColIndex);
             if (concepto.Equals("Pasivos", StringComparison.OrdinalIgnoreCase)) { currentType = "PASIVO"; continue; }
             if (concepto.Equals("Capital", StringComparison.OrdinalIgnoreCase)) { currentType = "CAPITAL"; continue; }
-            // ARREGLO 1: Modificamos la línea 245 para que NO descarte los totales.
+
+            // ++++++ FILTRO CORREGIDO (EL BUENO) ++++++
+            // Solo omitimos los encabezados que NO tienen valores
             if (string.IsNullOrWhiteSpace(concepto) ||
-                (concepto.StartsWith("Activos") && !concepto.Contains("Total")) || // <- Solo descarta "Activos" si NO es "Total Activos"
-                (concepto.StartsWith("Pasivos") && !concepto.Contains("Total")) || // <- (Añadido por seguridad)
-                concepto.StartsWith("Circulantes") ||
-                concepto.StartsWith("Fijos") ||
-                concepto.StartsWith("Capital") && !concepto.Contains("Total")) // <- (Añadido por seguridad)
+                concepto.Equals("Activos", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Activos Circulantes", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Activos Fijos", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Activos No Circulantes", StringComparison.OrdinalIgnoreCase) ||
+                concepto.Equals("Pasivos Circulantes", StringComparison.OrdinalIgnoreCase)
+                // ¡¡¡AQUÍ ESTÁ EL ARREGLO!! Quité la línea que bloqueaba "Pasivos No Circulantes"
+                )
             {
-                continue;
+                continue; // Solo omite los ENCABEZADOS simples, pero no los "Totales"
             }
+            // ++++++ FIN DEL ARREGLO ++++++
 
             // ARREGLO 2: Invertimos el orden. Primero guardamos, LUEGO hacemos break.
             conceptos.Add(new BGConcepto { IdAnalisis = analisisId, Anio = year1, Concepto = concepto, Tipo = currentType, Valor = SafeGetDecimal(row, colAnio1, culture) });
@@ -435,4 +599,44 @@
     }
 
     public class UploadFormModel { }
+
+    /// <summary>
+    /// Busca un valor en la lista del Balance General por varios nombres posibles.
+    /// </summary>
+    private decimal GetBGVal(IEnumerable<BGConcepto> bgAnio, string[] conceptNames)
+    {
+        foreach (var name in conceptNames)
+        {
+            var concepto = bgAnio.FirstOrDefault(c => c.Concepto.Trim().Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (concepto != null)
+            {
+                return concepto.Valor;
+            }
+        }
+        return 0m; // Devuelve 0 si no se encuentra
+    }
+
+    /// <summary>
+    /// Busca un valor en la lista del Estado de Resultados por varios nombres posibles.
+    /// </summary>
+    private decimal GetERVal(IEnumerable<ERConcepto> erAnio, string[] conceptNames)
+    {
+        foreach (var name in conceptNames)
+        {
+            var concepto = erAnio.FirstOrDefault(c => c.Concepto.Trim().Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (concepto != null)
+            {
+                return concepto.Valor;
+            }
+        }
+        return 0m;
+    }
+
+    /// <summary>
+    /// Divide dos números de forma segura, evitando errores de división por cero.
+    /// </summary>
+    private decimal SafeDivide(decimal numerator, decimal denominator)
+    {
+        return (denominator == 0) ? 0 : (numerator / denominator);
+    }
 }

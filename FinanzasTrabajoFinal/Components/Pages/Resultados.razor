@@ -63,6 +63,12 @@ else
             <li class="nav-item">
                 <button class="@GetButtonClass("cnt")" @onclick="@(() => SetActiveTab("cnt"))" type="button">Capital de Trabajo (CNT)</button>
             </li>
+            <li class="nav-item">
+                <button class="@GetButtonClass("eoaf")" @onclick="@(() => SetActiveTab("eoaf"))" type="button">Origen y Aplicación</button>
+            </li>
+            <li class="nav-item">
+                <button class="@GetButtonClass("razones")" @onclick="@(() => SetActiveTab("razones"))" type="button">Razones Financieras</button>
+            </li>
         </ul>
 
         <div class="tab-content">
@@ -108,8 +114,95 @@ else
                     </tbody>
                 </table>
             </div>
-        </div>
 
+            <div class="@GetPaneClass("eoaf") p-3">
+                <h4 class="mt-2">Estado de Origen y Aplicación de Fondos (EOAF)</h4>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Orígenes de Fondos</th>
+                                    <th class="text-end">Valor (C$)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in origenes)
+                                {
+                                    <tr>
+                                        <td>@item.Concepto</td>
+                                        <td class="text-end">@item.Valor.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td><strong>Total Orígenes</strong></td>
+                                    <td class="text-end"><strong>@totalOrigenes.ToString("N2")</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="col-md-6">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Aplicaciones de Fondos</th>
+                                    <th class="text-end">Valor (C$)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in aplicaciones)
+                                {
+                                    <tr>
+                                        <td>@item.Concepto</td>
+                                        <td class="text-end">@item.Valor.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td><strong>Total Aplicaciones</strong></td>
+                                    <td class="text-end"><strong>@totalAplicaciones.ToString("N2")</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="@GetPaneClass("razones") p-3">
+
+                @if (!aniosRazones.Any())
+                {
+                    <div class="alert alert-warning mt-3">No hay datos suficientes (BG y ER del mismo año) para calcular las razones financieras.</div>
+                }
+                else
+                {
+                    <TablaResultados Titulo="Razones de Liquidez"
+                                     Anios="aniosRazones"
+                                     Resultados="razonesLiquidez"
+                                     EsPorcentaje="false" />
+
+                    <TablaResultados Titulo="Razones de Actividad"
+                                     Anios="aniosRazones"
+                                     Resultados="razonesActividad"
+                                     EsPorcentaje="false" />
+
+                    <TablaResultados Titulo="Razones de Endeudamiento"
+                                     Anios="aniosRazones"
+                                     Resultados="razonesEndeudamiento"
+                                     EsPorcentaje="false" />
+
+                    <TablaResultados Titulo="Razones de Rentabilidad"
+                                     Anios="aniosRazones"
+                                     Resultados="razonesRentabilidad"
+                                     EsPorcentaje="true" />
+                }
+            </div>
+        </div>
     </div>
 }
 
@@ -123,40 +216,49 @@ else
     private List<int> anios = new();
     private int anioAnterior, anioActual;
 
+    // --- Listas para los cálculos ---
     private List<ResultadoCalculado> resultadosVerticalesBG = new();
     private List<ResultadoCalculado> resultadosVerticalesER = new();
     private List<ResultadoHorizontal> resultadosHorizontalesBG = new();
     private List<CapitalesNetos> capitalesNetos = new();
+    private List<OrigenAplicacion> origenes = new();
+    private List<OrigenAplicacion> aplicaciones = new();
+    private decimal totalOrigenes = 0m;
+    private decimal totalAplicaciones = 0m;
 
-    // --- AÑADIDO: CÓDIGO PARA CONTROLAR LAS PESTAÑAS (TABS) ---
+    // ++++++ NUEVAS VARIABLES PARA RAZONES ++++++
+    private List<int> aniosRazones = new();
+    private List<ResultadoCalculado> razonesLiquidez = new();
+    private List<ResultadoCalculado> razonesActividad = new();
+    private List<ResultadoCalculado> razonesEndeudamiento = new();
+    private List<ResultadoCalculado> razonesRentabilidad = new();
+
+
+    // --- CÓDIGO PARA CONTROLAR LAS PESTAÑAS (TABS) ---
     private string activeTabId = "vertical-bg"; // ID de la pestaña activa por defecto
 
-    // Método para cambiar la pestaña activa
     private void SetActiveTab(string tabId)
     {
         activeTabId = tabId;
     }
 
-    // Método para darle la clase CSS correcta al BOTÓN
     private string GetButtonClass(string tabId)
     {
         return tabId == activeTabId ? "nav-link active" : "nav-link";
     }
 
-    // Método para darle la clase CSS correcta al CONTENIDO
     private string GetPaneClass(string tabId)
     {
         return tabId == activeTabId ? "tab-pane fade show active" : "tab-pane fade";
     }
-    // --- FIN DEL CÓDIGO AÑADIDO ---
+    // --- FIN DEL CÓDIGO DE PESTAÑAS ---
 
 
-    // --- ESTE ES EL MÉTODO ORIGINAL, PERO ARREGLADO ---
+    // --- MÉTODO DE CARGA DE DATOS ---
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // Usamos UNA SOLA CONEXIÓN, como al principio
             await using var db = await DbFactory.CreateDbContextAsync();
 
             analisis = await db.AnalisisFinancieros
@@ -168,7 +270,7 @@ else
                 return;
             }
 
-            // 1. Cargar Años
+            // 1. Cargar Años (Verticales o CNT)
             var aniosVertical = await db.ResultadoVerticales
                 .Where(r => r.IdAnalisis == IdAnalisis)
                 .Select(r => r.Anio)
@@ -178,7 +280,6 @@ else
 
             if (!aniosVertical.Any())
             {
-                // Si no hay verticales, busca en CNT
                 var aniosCNT = await db.CapitalesNetos
                     .Where(r => r.IdAnalisis == IdAnalisis)
                     .Select(r => r.Anio)
@@ -197,7 +298,7 @@ else
                 anios = aniosVertical;
             }
 
-            // (Asignar años)
+            // Asignar años para Horizontal
             if (anios.Count == 1)
             {
                 anioAnterior = anios.First();
@@ -221,7 +322,6 @@ else
                 .Select(g => new ResultadoCalculado
                 {
                     Concepto = g.Key,
-                    // *** ¡LA CORRECCIÓN CLAVE QUE SÍ FUNCIONÓ! ***
                     ValoresPorAnio = g.GroupBy(r => r.Anio).ToDictionary(g_anio => g_anio.Key, g_anio => g_anio.First().Porcentaje)
                 }).ToList();
 
@@ -235,7 +335,6 @@ else
                 .Select(g => new ResultadoCalculado
                 {
                     Concepto = g.Key,
-                    // *** ¡LA CORRECCIÓN CLAVE QUE SÍ FUNCIONÓ! ***
                     ValoresPorAnio = g.GroupBy(r => r.Anio).ToDictionary(g_anio => g_anio.Key, g_anio => g_anio.First().Porcentaje)
                 }).ToList();
 
@@ -251,6 +350,43 @@ else
             capitalesNetos = await db.CapitalesNetos
                 .Where(r => r.IdAnalisis == IdAnalisis)
                 .ToListAsync();
+
+            // --- 2e. CÁLCULO DE EOAF ---
+            var eoafData = await db.OrigenAplicaciones
+                .Where(r => r.IdAnalisis == IdAnalisis)
+                .ToListAsync();
+
+            origenes = eoafData.Where(e => e.Flujo == "ORIGEN").OrderBy(e => e.Concepto).ToList();
+            aplicaciones = eoafData.Where(e => e.Flujo == "APLICACION").OrderBy(e => e.Concepto).ToList();
+
+            totalOrigenes = origenes.Sum(e => e.Valor);
+            totalAplicaciones = aplicaciones.Sum(e => e.Valor);
+
+            // ++++++ NUEVO CÓDIGO DE CARGA PARA RAZONES ++++++
+            // --- 2f. CÁLCULO DE RAZONES ---
+            var todasRazones = await db.RazonesFinancieras
+                .Where(r => r.IdAnalisis == IdAnalisis)
+                .ToListAsync();
+
+            if (todasRazones.Any())
+            {
+                aniosRazones = todasRazones.Select(r => r.Anio).Distinct().OrderBy(a => a).ToList();
+                var grupos = todasRazones.GroupBy(r => r.Grupo);
+
+                // Función local para rellenar las listas
+                Func<string, List<ResultadoCalculado>> GetRazonesPorGrupo = (grupo) =>
+                {
+                    return grupos.FirstOrDefault(g => g.Key == grupo)?
+                                 .GroupBy(r => r.NombreRazon)
+                                 .Select(g => new ResultadoCalculado { Concepto = g.Key, ValoresPorAnio = g.ToDictionary(r => r.Anio, r => r.ValorRazon) })
+                                 .ToList() ?? new();
+                };
+
+                razonesLiquidez = GetRazonesPorGrupo("Liquidez");
+                razonesActividad = GetRazonesPorGrupo("Actividad");
+                razonesEndeudamiento = GetRazonesPorGrupo("Endeudamiento");
+                razonesRentabilidad = GetRazonesPorGrupo("Rentabilidad");
+            }
         }
         catch (Exception ex)
         {
