@@ -31,4 +31,4 @@ public class FinanzasContext : DbContext
 
         base.OnModelCreating(modelBuilder);
     }
-}
+} // hola
