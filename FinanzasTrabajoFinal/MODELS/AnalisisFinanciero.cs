@@ -22,4 +22,5 @@ public class AnalisisFinanciero
     // Propiedad de navegación (Foreign Key)
     [ForeignKey(nameof(IdUsuario))]
     public Usuarios Usuario { get; set; }
+    //Nueva version
 }
