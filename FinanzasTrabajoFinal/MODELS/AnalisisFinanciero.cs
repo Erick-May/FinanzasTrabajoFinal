@@ -23,4 +23,5 @@ public class AnalisisFinanciero
     [ForeignKey(nameof(IdUsuario))]
     public Usuarios Usuario { get; set; }
     //Nueva version
+    //No se 
 }
