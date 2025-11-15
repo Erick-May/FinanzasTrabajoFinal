@@ -18,6 +18,8 @@ public class AnalisisFinanciero
 
     [Column("NOMBRE_ARCHIVO")]
     public string NombreArchivo { get; set; }
+    [Column("INTERPRETACION_IA")]
+    public string? InterpretacionIA { get; set; }
 
     // Propiedad de navegación (Foreign Key)
     [ForeignKey(nameof(IdUsuario))]

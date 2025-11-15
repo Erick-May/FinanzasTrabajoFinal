@@ -22,6 +22,7 @@ builder.Services.AddDbContextFactory<FinanzasContext>(options =>
 // Registra tus otros servicios
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<UserStateService>();
+builder.Services.AddScoped<GeminiService>();
 
 // Registra los componentes de Blazor
 builder.Services.AddRazorComponents()
