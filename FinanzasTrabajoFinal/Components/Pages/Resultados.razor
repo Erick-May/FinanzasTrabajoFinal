@@ -69,6 +69,9 @@ else
             <li class="nav-item">
                 <button class="@GetButtonClass("razones")" @onclick="@(() => SetActiveTab("razones"))" type="button">Razones Financieras</button>
             </li>
+            <li class="nav-item">
+                <button class="@GetButtonClass("flujo-efectivo")" @onclick="@(() => SetActiveTab("flujo-efectivo"))" type="button">Flujo de Efectivo</button>
+            </li>
         </ul>
 
         <div class="tab-content">
@@ -210,8 +213,96 @@ else
                                      EsPorcentaje="true" />
                 }
             </div>
+
+            <div class="@GetPaneClass("flujo-efectivo") p-3">
+                <h4 class="mt-2">Estado de Flujo de Efectivo (Método Indirecto)</h4>
+
+                @if (!flujoOperacion.Any())
+                {
+                    <div class="alert alert-warning mt-3">No hay datos suficientes (se requieren 2 años) para calcular el Flujo de Efectivo.</div>
+                }
+                else
+                {
+                    <div class="table-responsive" style="max-width: 800px;">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Actividades de Operación</th>
+                                    <th class="text-end">Valor (C$)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in flujoOperacion.Where(f => !f.Concepto.StartsWith("Flujos netos")))
+                                {
+                                    <tr>
+                                        <td style="padding-left: 2rem;">@item.Concepto</td>
+                                        <td class="text-end">@item.Valor.ToString("N2")</td>
+                                    </tr>
+                                }
+                                <tr class="table-light">
+                                    <td><strong>@flujoOperacion.Last().Concepto</strong></td>
+                                    <td class="text-end"><strong>@flujoOperacion.Last().Valor.ToString("N2")</strong></td>
+                                </tr>
+                            </tbody>
+
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Actividades de Inversión</th>
+                                    <th class="text-end">Valor (C$)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in flujoInversion.Where(f => !f.Concepto.StartsWith("Flujos netos")))
+                                {
+                                    <tr>
+                                        <td style="padding-left: 2rem;">@item.Concepto</td>
+                                        <td class="text-end">@item.Valor.ToString("N2")</td>
+                                    </tr>
+                                }
+                                <tr class="table-light">
+                                    <td><strong>@flujoInversion.Last().Concepto</strong></td>
+                                    <td class="text-end"><strong>@flujoInversion.Last().Valor.ToString("N2")</strong></td>
+                                </tr>
+                            </tbody>
+
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Actividades de Financiación</th>
+                                    <th class="text-end">Valor (C$)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in flujoFinanciacion.Where(f => !f.Concepto.StartsWith("Flujos netos")))
+                                {
+                                    <tr>
+                                        <td style="padding-left: 2rem;">@item.Concepto</td>
+                                        <td class="text-end">@item.Valor.ToString("N2")</td>
+                                    </tr>
+                                }
+                                <tr class="table-light">
+                                    <td><strong>@flujoFinanciacion.Last().Concepto</strong></td>
+                                    <td class="text-end"><strong>@flujoFinanciacion.Last().Valor.ToString("N2")</strong></td>
+                                </tr>
+                            </tbody>
+
+                            <tfoot class="table-secondary">
+                                @foreach (var item in flujoResumen)
+                                {
+                                    <tr style="border-top: 2px solid #555;">
+                                        <td><strong>@item.Concepto</strong></td>
+                                        <td class="text-end"><strong>@item.Valor.ToString("N2")</strong></td>
+                                    </tr>
+                                }
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+            </div>
+
         </div>
     </div>
+
+
 }
 
 @code {
@@ -241,6 +332,12 @@ else
     private List<ResultadoCalculado> razonesEndeudamiento = new();
     private List<ResultadoCalculado> razonesRentabilidad = new();
 
+    // --- AGREGA ESTAS LÍNEAS (AQUÍ) ---
+    private List<FlujoEfectivo> flujoOperacion = new();
+    private List<FlujoEfectivo> flujoInversion = new();
+    private List<FlujoEfectivo> flujoFinanciacion = new();
+    private List<FlujoEfectivo> flujoResumen = new();
+    // --- FIN ---
 
     // --- CÓDIGO PARA CONTROLAR LAS PESTAÑAS (TABS) ---
     private string activeTabId = "vertical-bg"; // ID de la pestaña activa por defecto
@@ -395,6 +492,18 @@ else
                 razonesEndeudamiento = GetRazonesPorGrupo("Endeudamiento");
                 razonesRentabilidad = GetRazonesPorGrupo("Rentabilidad");
             }
+
+            // --- AGREGA ESTE BLOQUE ---
+            var flujosEfectivo = await db.FlujosEfectivo
+                .Where(f => f.IdAnalisis == IdAnalisis)
+                .OrderBy(f => f.Orden)
+                .ToListAsync();
+
+            flujoOperacion = flujosEfectivo.Where(f => f.TipoFlujo == "Operación").ToList();
+            flujoInversion = flujosEfectivo.Where(f => f.TipoFlujo == "Inversión").ToList();
+            flujoFinanciacion = flujosEfectivo.Where(f => f.TipoFlujo == "Financiación").ToList();
+            flujoResumen = flujosEfectivo.Where(f => f.TipoFlujo == "Resumen").ToList();
+            // --- FIN ---
         }
         catch (Exception ex)
         {
