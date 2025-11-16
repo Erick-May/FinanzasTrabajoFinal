@@ -239,18 +239,39 @@
                 .Where(c => c.Concepto.Trim().Equals("Total Pasivo Circulante", StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(c => c.Anio, c => c.Valor);
 
+            // 4d. CALCULAR CNT Y CNO
             foreach (var anio in anios)
             {
+                // Obtenemos los conceptos de BG para este año específico
+                var bgAnio = conceptosBG.Where(c => c.Anio == anio);
+
+                // --- Cálculo de CNT (como ya lo tenías) ---
                 decimal cnt = actCirculante.GetValueOrDefault(anio) - pasCirculante.GetValueOrDefault(anio);
 
-                // Guardamos en la tabla Capitales_Netos
+                // --- Cálculo de CNO (SEGÚN TU NUEVA FÓRMULA) ---
+
+                // 1. Activo Operativo
+                decimal cuentasCobrar = GetBGVal(bgAnio, new[] { "Cuentas y Documentos Por Cobrar", "Cuentas por Cobrar" });
+                decimal inventarios = GetBGVal(bgAnio, new[] { "Inventarios", "Inventario de Repuestos y Accesorios" });
+
+                // 2. Pasivo Operativo (¡Revisa estos nombres!)
+                decimal cuentasPagar = GetBGVal(bgAnio, new[] { "Cuentas Por Pagar", "Proveedores" });
+
+                // 3. Este es el nuevo concepto que pediste (Documentos por Pagar)
+                //    Asegúrate que tu Excel tenga uno de estos nombres.
+                decimal docsPagar = GetBGVal(bgAnio, new[] { "Documentos por Pagar", "Documentos por Pagar a Corto Plazo" });
+
+                // 4. Aplicando tu fórmula exacta: (CxC + Inv) - (CxP - DxP)
+                decimal cno = (cuentasCobrar + inventarios) - (cuentasPagar - docsPagar);
+
+                // Guardamos AMBOS en la tabla Capitales_Netos
                 capitalesNetos.Add(new CapitalesNetos
-                {
-                    IdAnalisis = nuevoAnalisis.IdAnalisis,
-                    Anio = anio,
-                    CNT = cnt,
-                    CNO = null // Se queda vacío por ahora
-                });
+                    {
+                        IdAnalisis = nuevoAnalisis.IdAnalisis,
+                        Anio = anio,
+                        CNT = cnt,
+                        CNO = cno // <-- ¡Valor actualizado con tu nueva fórmula!
+                    });
             }
 
             // --- 4e. CALCULAR ESTADO DE ORIGEN Y APLICACIÓN (EOAF) ---

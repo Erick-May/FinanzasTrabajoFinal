@@ -61,7 +61,7 @@ else
                 <button class="@GetButtonClass("horizontal-bg")" @onclick="@(() => SetActiveTab("horizontal-bg"))" type="button">Horizontal (BG)</button>
             </li>
             <li class="nav-item">
-                <button class="@GetButtonClass("cnt")" @onclick="@(() => SetActiveTab("cnt"))" type="button">Capital de Trabajo (CNT)</button>
+                <button class="@GetButtonClass("cnt")" @onclick="@(() => SetActiveTab("cnt"))" type="button">CNT y CNO</button>
             </li>
             <li class="nav-item">
                 <button class="@GetButtonClass("eoaf")" @onclick="@(() => SetActiveTab("eoaf"))" type="button">Origen y Aplicación</button>
@@ -94,21 +94,29 @@ else
             </div>
 
             <div class="@GetPaneClass("cnt") p-3">
-                <h4 class="mt-2">Capital Neto de Trabajo (CNT)</h4>
-                <p>Calculado como: (Total Activo Circulante - Total Pasivo Circulante)</p>
+
+                <h4 class="mt-2">Capital Neto de Trabajo (CNT) y Operativo (CNO)</h4>
+
+                <p class="mb-1"><b>CNT:</b> (Total Activo Circulante - Total Pasivo Circulante)</p>
+                <p><b>CNO:</b> (Cuentas por Cobrar + Inventarios) - (Cuentas por Pagar - Documentos por Pagar)</p>
+
                 <table class="table table-sm table-bordered" style="max-width: 600px;">
                     <thead class="table-light">
                         <tr>
                             <th>Año</th>
-                            <th>Valor (C$)</th>
+                            <th class="text-end">CNT (C$)</th>
+                            <th class="text-end">CNO (C$)</th>
                         </tr>
                     </thead>
                     <tbody>
+                        @* Usamos la variable 'capitalesNetos' que ya se carga en el @code *@
                         @foreach (var item in capitalesNetos.OrderBy(r => r.Anio))
                         {
                             <tr>
                                 <td>@item.Anio</td>
-                                <td>@item.CNT.ToString("N2")</td>
+                                <td class="text-end">@item.CNT.ToString("N2")</td>
+
+                                <td class="text-end">@item.CNO?.ToString("N2")</td>
                             </tr>
                         }
                     </tbody>
