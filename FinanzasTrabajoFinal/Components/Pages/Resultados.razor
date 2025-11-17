@@ -303,17 +303,76 @@ else
             </div>
 
             <div class="@GetPaneClass("dupont") p-3">
+                <h4 class="mt-2">Análisis DuPont</h4>
 
-                @if (!aniosRazones.Any())
+                @if (!listaDuPont.Any())
                 {
                     <div class="alert alert-warning mt-3">No hay datos suficientes (BG y ER del mismo año) para calcular el Sistema DuPont.</div>
                 }
                 else
                 {
-                    <TablaResultados Titulo="Análisis DuPont"
-                                     Anios="aniosRazones"
-                                     Resultados="razonesDuPont"
-                                     EsPorcentaje="false" />
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Concepto</th>
+                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
+                                    {
+                                        <th class="text-end">@anio</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Margen de Utilidad Neta</td>
+                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
+                                    {
+                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.MargenUtilidad ?? 0;
+                                        <td class="text-end">@valor.ToString("P2")</td> }
+                                </tr>
+                                <tr>
+                                    <td>Rotación del Activo</td>
+                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
+                                    {
+                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.RotacionActivo ?? 0;
+                                        <td class="text-end">@valor.ToString("N2")</td> }
+                                </tr>
+                                <tr>
+                                    <td>Multiplicador de Apalancamiento</td>
+                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
+                                    {
+                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.Apalancamiento ?? 0;
+                                        <td class="text-end">@valor.ToString("N2")</td>
+                                    }
+                                </tr>
+                                <tr class="table-light">
+                                    <td><strong>ROA (Return on Assets)</strong></td>
+                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
+                                    {
+                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.ROA ?? 0;
+                                        <td class="text-end"><strong>@valor.ToString("P2")</strong></td>
+                                    }
+                                </tr>
+                                <tr class="table-light">
+                                    <td><strong>ROE (Return on Equity)</strong></td>
+                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
+                                    {
+                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.ROE ?? 0;
+                                        <td class="text-end"><strong>@valor.ToString("P2")</strong></td>
+                                    }
+                                </tr>
+                                <tr class="table-light" style="border-top: 2px solid #555;">
+                                    <td><strong>DuPont (Margen * Rotación * Apal.)</strong></td>
+                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
+                                    {
+                                        var item = listaDuPont.FirstOrDefault(d => d.Anio == anio);
+                                        var valor = (item != null) ? (item.MargenUtilidad * item.RotacionActivo * item.Apalancamiento) : 0;
+                                        <td class="text-end"><strong>@valor.ToString("P2")</strong></td>
+                                    }
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 }
             </div>
 
@@ -357,7 +416,7 @@ else
     private List<FlujoEfectivo> flujoResumen = new();
     // --- FIN ---
 
-    private List<ResultadoCalculado> razonesDuPont = new();
+    private List<DuPont> listaDuPont = new();
 
     // --- CÓDIGO PARA CONTROLAR LAS PESTAÑAS (TABS) ---
     private string activeTabId = "vertical-bg"; // ID de la pestaña activa por defecto
@@ -512,7 +571,7 @@ else
                 razonesEndeudamiento = GetRazonesPorGrupo("Endeudamiento");
                 razonesRentabilidad = GetRazonesPorGrupo("Rentabilidad");
 
-                razonesDuPont = GetRazonesPorGrupo("DuPont");
+                listaDuPont = await db.DuPonts.Where(d => d.IdAnalisis == IdAnalisis).OrderBy(d => d.Anio).ToListAsync();
             }
 
             // --- AGREGA ESTE BLOQUE ---

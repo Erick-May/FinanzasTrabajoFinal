@@ -346,6 +346,8 @@
             var aniosBG = conceptosBG.Select(c => c.Anio).Distinct();
             var aniosER = conceptosER.Select(c => c.Anio).Distinct();
             var aniosCompletos = aniosBG.Intersect(aniosER);
+            // ... (justo antes de 'foreach (var anio in aniosCompletos)')
+            var listaDuPont = new List<DuPont>();
 
             foreach (var anio in aniosCompletos)
             {
@@ -432,33 +434,28 @@
                 listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Margen de Utilidad Neta", ValorRazon = margenNeto });
                 listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Rentabilidad sobre el Activo (ROA)", ValorRazon = roa });
 
-                // --- 5. SISTEMA DUPONT (¡AHORA ESTÁ DENTRO!) ---
+                // --- 5. SISTEMA DUPONT (Forma Ordenada) ---
                 
-                // Ya tenemos las variables de antes:
-                // utilidadNeta
-                // ventas
-                // activosTotales
-                // capitalNeto (que es tu Patrimonio Total)
-
+                // Usamos las variables que ya tenías
                 decimal margenUtilidad = SafeDivide(utilidadNeta, ventas);
                 decimal rotacionActivo = SafeDivide(ventas, activosTotales);
                 decimal multiplicadorApalancamiento = SafeDivide(activosTotales, capitalNeto);
+                
+                // ROA y ROE según las fórmulas de tu imagen
                 decimal roaDupont = SafeDivide(utilidadNeta, activosTotales); 
                 decimal roeDupont = SafeDivide(utilidadNeta, capitalNeto);
 
-                // Añadimos los componentes individuales
-                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "Margen de Utilidad Neta", ValorRazon = margenUtilidad });
-                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "Rotación del Activo", ValorRazon = rotacionActivo });
-                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "Multiplicador de Apalancamiento", ValorRazon = multiplicadorApalancamiento });
-                
-                // Añadimos los resultados (ROA y ROE)
-                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "ROA (Return on Assets)", ValorRazon = roaDupont });
-                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "ROE (Return on Equity)", ValorRazon = roeDupont });
-                
-                // Añadimos la comprobación del sistema
-                decimal CalculadoDupont = margenUtilidad * rotacionActivo * multiplicadorApalancamiento;
-                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "DUPONT (Margen Utilidad * Rotación del Activo * Apalancamiento)", ValorRazon = CalculadoDupont });
-
+                // Creamos el objeto para la nueva tabla
+                listaDuPont.Add(new DuPont
+                {
+                    IdAnalisis = nuevoAnalisis.IdAnalisis,
+                    Anio = anio,
+                    MargenUtilidad = margenUtilidad,
+                    RotacionActivo = rotacionActivo,
+                    Apalancamiento = multiplicadorApalancamiento,
+                    ROA = roaDupont,
+                    ROE = roeDupont
+                });
             } // <--- ¡LA LLAVE DE CIERRE DEL 'foreach' VA AQUÍ!
 
             // --- 4f. CALCULAR FLUJO DE EFECTIVO (INDIRECTO) ---
@@ -588,6 +585,7 @@
             
             // Guardamos la nueva lista en la BD
             await db.FlujosEfectivo.AddRangeAsync(listaFlujoEfectivo);
+            await db.DuPonts.AddRangeAsync(listaDuPont);
             //Cálculos (Razones)
             await db.RazonesFinancieras.AddRangeAsync(listaRazones);
             // 5. Guardar Cálculos

@@ -21,7 +21,7 @@ public class FinanzasContext : DbContext
     public DbSet<OrigenAplicacion> OrigenAplicaciones { get; set; }
     public DbSet<CapitalesNetos> CapitalesNetos { get; set; }
     public DbSet<FlujoEfectivo> FlujosEfectivo { get; set; }
-
+    public DbSet<DuPont> DuPonts { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
 
