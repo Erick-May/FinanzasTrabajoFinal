@@ -72,6 +72,9 @@ else
             <li class="nav-item">
                 <button class="@GetButtonClass("flujo-efectivo")" @onclick="@(() => SetActiveTab("flujo-efectivo"))" type="button">Flujo de Efectivo</button>
             </li>
+            <li class="nav-item">
+                <button class="@GetButtonClass("dupont")" @onclick="@(() => SetActiveTab("dupont"))" type="button">Sistema DuPont</button>
+            </li>
         </ul>
 
         <div class="tab-content">
@@ -299,6 +302,21 @@ else
                 }
             </div>
 
+            <div class="@GetPaneClass("dupont") p-3">
+
+                @if (!aniosRazones.Any())
+                {
+                    <div class="alert alert-warning mt-3">No hay datos suficientes (BG y ER del mismo año) para calcular el Sistema DuPont.</div>
+                }
+                else
+                {
+                    <TablaResultados Titulo="Análisis DuPont"
+                                     Anios="aniosRazones"
+                                     Resultados="razonesDuPont"
+                                     EsPorcentaje="false" />
+                }
+            </div>
+
         </div>
     </div>
 
@@ -338,6 +356,8 @@ else
     private List<FlujoEfectivo> flujoFinanciacion = new();
     private List<FlujoEfectivo> flujoResumen = new();
     // --- FIN ---
+
+    private List<ResultadoCalculado> razonesDuPont = new();
 
     // --- CÓDIGO PARA CONTROLAR LAS PESTAÑAS (TABS) ---
     private string activeTabId = "vertical-bg"; // ID de la pestaña activa por defecto
@@ -491,6 +511,8 @@ else
                 razonesActividad = GetRazonesPorGrupo("Actividad");
                 razonesEndeudamiento = GetRazonesPorGrupo("Endeudamiento");
                 razonesRentabilidad = GetRazonesPorGrupo("Rentabilidad");
+
+                razonesDuPont = GetRazonesPorGrupo("DuPont");
             }
 
             // --- AGREGA ESTE BLOQUE ---

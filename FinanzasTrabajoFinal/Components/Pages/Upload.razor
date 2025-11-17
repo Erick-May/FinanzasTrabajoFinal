@@ -339,7 +339,7 @@
             //Cálculos (EOAF)
             await db.OrigenAplicaciones.AddRangeAsync(origenAplicacionLista);
 
-            // --- 4f. CALCULAR RAZONES FINANCIERAS ---
+           // --- 4f. CALCULAR RAZONES FINANCIERAS ---
             var listaRazones = new List<RazonFinanciera>();
 
             // Identificamos los años que tienen AMBOS (BG y ER)
@@ -431,7 +431,35 @@
                 listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Margen de Utilidad Operativa (MUO)", ValorRazon = muo });
                 listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Margen de Utilidad Neta", ValorRazon = margenNeto });
                 listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Rentabilidad sobre el Activo (ROA)", ValorRazon = roa });
-            }
+
+                // --- 5. SISTEMA DUPONT (¡AHORA ESTÁ DENTRO!) ---
+                
+                // Ya tenemos las variables de antes:
+                // utilidadNeta
+                // ventas
+                // activosTotales
+                // capitalNeto (que es tu Patrimonio Total)
+
+                decimal margenUtilidad = SafeDivide(utilidadNeta, ventas);
+                decimal rotacionActivo = SafeDivide(ventas, activosTotales);
+                decimal multiplicadorApalancamiento = SafeDivide(activosTotales, capitalNeto);
+                decimal roaDupont = SafeDivide(utilidadNeta, activosTotales); 
+                decimal roeDupont = SafeDivide(utilidadNeta, capitalNeto);
+
+                // Añadimos los componentes individuales
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "Margen de Utilidad Neta", ValorRazon = margenUtilidad });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "Rotación del Activo", ValorRazon = rotacionActivo });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "Multiplicador de Apalancamiento", ValorRazon = multiplicadorApalancamiento });
+                
+                // Añadimos los resultados (ROA y ROE)
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "ROA (Return on Assets)", ValorRazon = roaDupont });
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "ROE (Return on Equity)", ValorRazon = roeDupont });
+                
+                // Añadimos la comprobación del sistema
+                decimal CalculadoDupont = margenUtilidad * rotacionActivo * multiplicadorApalancamiento;
+                listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "DuPont", NombreRazon = "DUPONT (Margen Utilidad * Rotación del Activo * Apalancamiento)", ValorRazon = CalculadoDupont });
+
+            } // <--- ¡LA LLAVE DE CIERRE DEL 'foreach' VA AQUÍ!
 
             // --- 4f. CALCULAR FLUJO DE EFECTIVO (INDIRECTO) ---
             // BASADO EN TU LÓGICA DE RECLASIFICAR EL EOAF
