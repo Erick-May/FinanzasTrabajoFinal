@@ -6,8 +6,10 @@
 @using Microsoft.EntityFrameworkCore
 @using System.Globalization
 @using System.Data
+@using Microsoft.AspNetCore.WebUtilities
 
 @inject IDbContextFactory<FinanzasContext> DbFactory
+@inject NavigationManager NavigationManager
 
 <PageTitle>Resultados del Análisis</PageTitle>
 
@@ -38,19 +40,41 @@ else if (analisis == null)
 }
 else
 {
-    <div class="container-fluid">
-        <div class="row mb-3">
+    <div class="container-fluid resultados-container">
+        <div class="row mb-4">
             <div class="col">
-                <h3>Resultados del Análisis</h3>
-                <h5 class="text-muted">Archivo: @analisis.NombreArchivo</h5>
-                <p class="text-muted small">Fecha: @analisis.FechaAnalisis.ToString("g")</p>
+                <div class="resultados-header">
+                    <h2 class="mb-2">Resultados del Análisis</h2>
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <div class="resultado-badge">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 0.5rem;">
+                                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            @analisis.NombreArchivo
+                        </div>
+                        <div class="resultado-date">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 0.25rem;">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                                <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            @analisis.FechaAnalisis.ToString("dd MMM yyyy", CultureInfo.CreateSpecificCulture("es-ES"))
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="col-auto">
-                <a href="/" class="btn btn-outline-secondary">Volver al Inicio</a>
+                <a href="/" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        <path d="M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Volver al Inicio
+                </a>
             </div>
         </div>
 
-        <ul class="nav nav-tabs">
+        <ul class="nav nav-tabs" style="display: none;">
             <li class="nav-item">
                 <button class="@GetButtonClass("vertical-bg")" @onclick="@(() => SetActiveTab("vertical-bg"))" type="button">Vertical (BG)</button>
             </li>
@@ -79,27 +103,27 @@ else
 
         <div class="tab-content">
 
-            <div class="@GetPaneClass("vertical-bg")">
+            <div class="@GetPaneClass("vertical-bg")" style="@GetPaneStyle("vertical-bg")">
                 <TablaResultados Titulo="Análisis Vertical - Balance General"
                                  Anios="anios"
                                  Resultados="resultadosVerticalesBG"
                                  EsPorcentaje="true" />
             </div>
 
-            <div class="@GetPaneClass("vertical-er")">
+            <div class="@GetPaneClass("vertical-er")" style="@GetPaneStyle("vertical-er")">
                 <TablaResultados Titulo="Análisis Vertical - Estado de Resultados"
                                  Anios="anios"
                                  Resultados="resultadosVerticalesER"
                                  EsPorcentaje="true" />
             </div>
 
-            <div class="@GetPaneClass("horizontal-bg")">
+            <div class="@GetPaneClass("horizontal-bg")" style="@GetPaneStyle("horizontal-bg")">
                 <TablaHorizontal Titulo="Análisis Horizontal - Balance General"
                                  Periodo="@($"{anioAnterior} - {anioActual}")"
                                  Resultados="resultadosHorizontalesBG" />
             </div>
 
-            <div class="@GetPaneClass("cnt") p-3">
+            <div class="@GetPaneClass("cnt") p-3" style="@GetPaneStyle("cnt")">
 
                 <h4 class="mt-2">Capital Neto de Trabajo (CNT) y Operativo (CNO)</h4>
 
@@ -129,7 +153,7 @@ else
                 </table>
             </div>
 
-            <div class="@GetPaneClass("eoaf") p-3">
+            <div class="@GetPaneClass("eoaf") p-3" style="@GetPaneStyle("eoaf")">
                 <h4 class="mt-2">Estado de Origen y Aplicación de Fondos (EOAF)</h4>
 
                 <div class="row">
@@ -187,7 +211,7 @@ else
                 </div>
             </div>
 
-            <div class="@GetPaneClass("razones") p-3">
+            <div class="@GetPaneClass("razones") p-3" style="@GetPaneStyle("razones")">
 
                 @if (!aniosRazones.Any())
                 {
@@ -217,7 +241,7 @@ else
                 }
             </div>
 
-            <div class="@GetPaneClass("flujo-efectivo") p-3">
+            <div class="@GetPaneClass("flujo-efectivo") p-3" style="@GetPaneStyle("flujo-efectivo")">
                 <h4 class="mt-2">Estado de Flujo de Efectivo (Método Indirecto)</h4>
 
                 @if (!flujoOperacion.Any())
@@ -302,7 +326,7 @@ else
                 }
             </div>
 
-            <div class="@GetPaneClass("dupont") p-3">
+            <div class="@GetPaneClass("dupont") p-3" style="@GetPaneStyle("dupont")">
                 <h4 class="mt-2">Análisis DuPont</h4>
 
                 @if (!listaDuPont.Any())
@@ -328,14 +352,16 @@ else
                                     @foreach (var anio in aniosRazones.OrderBy(a => a))
                                     {
                                         var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.MargenUtilidad ?? 0;
-                                        <td class="text-end">@valor.ToString("P2")</td> }
+                                        <td class="text-end">@valor.ToString("P2")</td>
+                                    }
                                 </tr>
                                 <tr>
                                     <td>Rotación del Activo</td>
                                     @foreach (var anio in aniosRazones.OrderBy(a => a))
                                     {
                                         var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.RotacionActivo ?? 0;
-                                        <td class="text-end">@valor.ToString("N2")</td> }
+                                        <td class="text-end">@valor.ToString("N2")</td>
+                                    }
                                 </tr>
                                 <tr>
                                     <td>Multiplicador de Apalancamiento</td>
@@ -433,7 +459,17 @@ else
 
     private string GetPaneClass(string tabId)
     {
-        return tabId == activeTabId ? "tab-pane fade show active" : "tab-pane fade";
+        var baseClass = "tab-pane fade";
+        if (tabId == activeTabId)
+        {
+            return $"{baseClass} show active";
+        }
+        return baseClass;
+    }
+
+    private string GetPaneStyle(string tabId)
+    {
+        return tabId == activeTabId ? "display: block;" : "display: none;";
     }
     // --- FIN DEL CÓDIGO DE PESTAÑAS ---
 
@@ -443,6 +479,14 @@ else
     {
         try
         {
+            // Leer el parámetro 'tab' de la URL si existe
+            var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+            var queryParams = QueryHelpers.ParseQuery(uri.Query);
+            if (queryParams.TryGetValue("tab", out var tabValue))
+            {
+                activeTabId = tabValue.ToString();
+            }
+
             await using var db = await DbFactory.CreateDbContextAsync();
 
             analisis = await db.AnalisisFinancieros
@@ -596,3 +640,126 @@ else
         }
     }
 }
+
+<style>
+    .resultados-container {
+        animation: fadeIn 0.6s ease-out;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .resultados-header {
+        animation: slideInDown 0.5s ease-out;
+    }
+
+    @@keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .resultado-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, rgba(135, 206, 235, 0.2), rgba(176, 224, 230, 0.15));
+        border: 1px solid rgba(135, 206, 235, 0.3);
+        border-radius: 0.5rem;
+        color: #0b2540;
+        font-weight: 500;
+        font-size: 0.9rem;
+        backdrop-filter: blur(5px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+        .resultado-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(135, 206, 235, 0.25);
+            background: linear-gradient(135deg, rgba(135, 206, 235, 0.3), rgba(176, 224, 230, 0.2));
+        }
+
+    .resultado-date {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.4rem 0.9rem;
+        background: rgba(255, 255, 255, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 0.5rem;
+        color: #0b2540;
+        font-size: 0.85rem;
+        backdrop-filter: blur(5px);
+        transition: all 0.3s ease;
+    }
+
+        .resultado-date:hover {
+            background: rgba(255, 255, 255, 0.6);
+            transform: translateY(-2px);
+        }
+
+    .tab-content {
+        animation: fadeInUp 0.6s ease-out 0.2s backwards;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .btn-outline-secondary {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(135, 206, 235, 0.3);
+        color: #0b2540;
+    }
+
+        .btn-outline-secondary:hover {
+            background: linear-gradient(135deg, rgba(135, 206, 235, 0.2), rgba(176, 224, 230, 0.15));
+            border-color: rgba(135, 206, 235, 0.5);
+            transform: translateX(-3px);
+            box-shadow: 0 4px 12px rgba(135, 206, 235, 0.2);
+        }
+
+    .resultados-header h2 {
+        font-family: 'Poppins', 'Inter', sans-serif;
+        font-weight: 700;
+        color: #0b2540;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.75rem;
+    }
+
+    .spinner-border {
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>

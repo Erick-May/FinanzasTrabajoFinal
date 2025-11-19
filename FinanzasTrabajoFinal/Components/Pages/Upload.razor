@@ -83,13 +83,17 @@
         selectedFile = e.File;
         statusMessage = $"Archivo seleccionado: {selectedFile.Name}";
         errorMessage = "";
+        StateHasChanged(); // Actualizar UI para habilitar el botón
     }
 
     private async Task HandleAnalysis()
     {
+        if (isProcessing) return; // Prevenir múltiples submits
+
         if (selectedFile == null || !UserStateService.IsLoggedIn)
         {
             errorMessage = "Por favor, selecciona un archivo y asegúrate de haber iniciado sesión.";
+            StateHasChanged();
             return;
         }
 
@@ -266,12 +270,12 @@
 
                 // Guardamos AMBOS en la tabla Capitales_Netos
                 capitalesNetos.Add(new CapitalesNetos
-                    {
-                        IdAnalisis = nuevoAnalisis.IdAnalisis,
-                        Anio = anio,
-                        CNT = cnt,
-                        CNO = cno // <-- ¡Valor actualizado con tu nueva fórmula!
-                    });
+                {
+                    IdAnalisis = nuevoAnalisis.IdAnalisis,
+                    Anio = anio,
+                    CNT = cnt,
+                    CNO = cno // <-- ¡Valor actualizado con tu nueva fórmula!
+                });
             }
 
             // --- 4e. CALCULAR ESTADO DE ORIGEN Y APLICACIÓN (EOAF) ---
@@ -339,7 +343,7 @@
             //Cálculos (EOAF)
             await db.OrigenAplicaciones.AddRangeAsync(origenAplicacionLista);
 
-           // --- 4f. CALCULAR RAZONES FINANCIERAS ---
+            // --- 4f. CALCULAR RAZONES FINANCIERAS ---
             var listaRazones = new List<RazonFinanciera>();
 
             // Identificamos los años que tienen AMBOS (BG y ER)
@@ -435,14 +439,14 @@
                 listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Rentabilidad", NombreRazon = "Rentabilidad sobre el Activo (ROA)", ValorRazon = roa });
 
                 // --- 5. SISTEMA DUPONT (Forma Ordenada) ---
-                
+
                 // Usamos las variables que ya tenías
                 decimal margenUtilidad = SafeDivide(utilidadNeta, ventas);
                 decimal rotacionActivo = SafeDivide(ventas, activosTotales);
                 decimal multiplicadorApalancamiento = SafeDivide(activosTotales, capitalNeto);
-                
+
                 // ROA y ROE según las fórmulas de tu imagen
-                decimal roaDupont = SafeDivide(utilidadNeta, activosTotales); 
+                decimal roaDupont = SafeDivide(utilidadNeta, activosTotales);
                 decimal roeDupont = SafeDivide(utilidadNeta, capitalNeto);
 
                 // Creamos el objeto para la nueva tabla
@@ -461,30 +465,30 @@
             // --- 4f. CALCULAR FLUJO DE EFECTIVO (INDIRECTO) ---
             // BASADO EN TU LÓGICA DE RECLASIFICAR EL EOAF
             var listaFlujoEfectivo = new List<FlujoEfectivo>();
-            int ordenFlujo = 1; 
+            int ordenFlujo = 1;
 
             if (anios.Count >= 2)
             {
                 // --- DATOS NECESARIOS ---
                 var erActual = conceptosER.Where(c => c.Anio == anioActual);
-                var utilidadNeta = GetERVal(erActual, new[] { 
-                    "Utilidad neta", "Utilidad o Perdida del Ejercicio", "Resultado del Ejercicio", "Beneficio Neto" 
+                var utilidadNeta = GetERVal(erActual, new[] {
+                    "Utilidad neta", "Utilidad o Perdida del Ejercicio", "Resultado del Ejercicio", "Beneficio Neto"
                 });
 
                 // --- 1. FLUJOS DE OPERACIÓN ---
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Utilidad Neta del Ejercicio", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = utilidadNeta });
-                
-                decimal depreciacionEjercicio = -GetVariacionBG(conceptosBG, new[] { 
-                    "Depreciacion Acumulada", "Depreciación Acumulada", "Depreciación y Amortización Acumulada" 
+
+                decimal depreciacionEjercicio = -GetVariacionBG(conceptosBG, new[] {
+                    "Depreciacion Acumulada", "Depreciación Acumulada", "Depreciación y Amortización Acumulada"
                 }, anioActual, anioAnterior);
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Depreciación y Amortización", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = depreciacionEjercicio });
-                
+
                 // --- Ajustes por Capital de Trabajo ---
                 decimal varCxC = GetVariacionBG(conceptosBG, new[] { "Cuentas y Documentos Por Cobrar", "Cuentas por Cobrar", "Clientes" }, anioActual, anioAnterior, tipo: "ACTIVO");
-                listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Cuentas por Cobrar", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = -varCxC }); 
+                listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Cuentas por Cobrar", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = -varCxC });
 
                 decimal varInventario = GetVariacionBG(conceptosBG, new[] { "Inventarios", "Inventario de Repuestos y Accesorios", "Mercadería", "Existencias" }, anioActual, anioAnterior, tipo: "ACTIVO");
-                listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Inventarios", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = -varInventario }); 
+                listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Inventarios", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = -varInventario });
 
                 // *** ¡AQUÍ ESTÁ TU CAMBIO! ***
                 // Trabajos en Proceso movido a OPERACIÓN
@@ -492,7 +496,7 @@
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Trabajos y Obras en Proceso", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = -varTrabajosProceso }); // Invertido (Activo)
 
                 decimal varPagosAnticipados = GetVariacionBG(conceptosBG, new[] { "Pagos Anticipados", "Anticipos a Proveedores", "Gastos Pagados por Anticipado" }, anioActual, anioAnterior, tipo: "ACTIVO");
-                listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Pagos Anticipados", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = -varPagosAnticipados }); 
+                listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Pagos Anticipados", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = -varPagosAnticipados });
 
                 decimal varOtrosActivosOp = GetVariacionBG(conceptosBG, new[] { "Otros Activos", "Otros Activos Corrientes" }, anioActual, anioAnterior, tipo: "ACTIVO");
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Otros Activos Operativos", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = -varOtrosActivosOp });
@@ -505,7 +509,7 @@
 
                 decimal varImpuestosPagar = GetVariacionBG(conceptosBG, new[] { "Impuestos y Aportes Por Pagar", "Impuestos por Pagar" }, anioActual, anioAnterior, tipo: "PASIVO");
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Impuestos y Aportes Por Pagar", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = varImpuestosPagar });
-                
+
                 decimal varRetenciones = GetVariacionBG(conceptosBG, new[] { "Retenciones Por Pagar" }, anioActual, anioAnterior, tipo: "PASIVO");
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Retenciones Por Pagar", TipoFlujo = "Operación", Orden = ordenFlujo++, Valor = varRetenciones });
 
@@ -514,12 +518,12 @@
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Flujos netos de efectivo de operación", TipoFlujo = "Operación", Orden = 90, Valor = flujoOperacion });
 
                 // --- 2. FLUJOS DE INVERSIÓN ---
-                ordenFlujo = 100; 
-                
+                ordenFlujo = 100;
+
                 decimal varActivoFijo = GetVariacionBG(conceptosBG, new[] { "Activos fijos netos", "Total Activos Fijos", "Total de Activos Fijos", "Total Activo Fijo", "Propiedades, Planta y Equipo", "Equipo Rodante" }, anioActual, anioAnterior, tipo: "ACTIVO");
                 decimal adquisicionActivos = varActivoFijo + depreciacionEjercicio; // Var. Neta + Depreciación = Var. Bruta
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Adquisición de Activos Fijos (Neto)", TipoFlujo = "Inversión", Orden = ordenFlujo++, Valor = -adquisicionActivos });
-                
+
                 decimal varDepositosGarantia = GetVariacionBG(conceptosBG, new[] { "Depositos en Garantia" }, anioActual, anioAnterior, tipo: "ACTIVO");
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Aumento/Disminución en Depósitos en Garantía", TipoFlujo = "Inversión", Orden = ordenFlujo++, Valor = -varDepositosGarantia });
 
@@ -531,12 +535,12 @@
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Flujos netos de efectivo de inversión", TipoFlujo = "Inversión", Orden = 190, Valor = flujoInversion });
 
                 // --- 3. FLUJOS DE FINANCIACIÓN ---
-                ordenFlujo = 200; 
-                
+                ordenFlujo = 200;
+
                 // Préstamos a Corto Plazo
                 decimal varBancosCP = GetVariacionBG(conceptosBG, new[] { "Bancos", "Préstamos Bancarios CP", "Sobregiros Bancarios" }, anioActual, anioAnterior, tipo: "PASIVO");
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Obtención/Pago de préstamos CP (Bancos)", TipoFlujo = "Financiación", Orden = ordenFlujo++, Valor = varBancosCP });
-                
+
                 decimal varDocsPagar = GetVariacionBG(conceptosBG, new[] { "Documentos por Pagar", "Documentos por Pagar a Corto Plazo" }, anioActual, anioAnterior, tipo: "PASIVO");
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Obtención/Pago de Documentos por Pagar", TipoFlujo = "Financiación", Orden = ordenFlujo++, Valor = varDocsPagar });
 
@@ -560,8 +564,8 @@
 
 
                 // --- 4. RESUMEN Y COMPROBACIÓN (LA QUE TÚ PEDISTE) ---
-                ordenFlujo = 300; 
-                
+                ordenFlujo = 300;
+
                 Func<int, decimal> GetEfectivoEquivalentes = (anio) =>
                 {
                     var bgAnio = conceptosBG.Where(c => c.Anio == anio);
@@ -573,7 +577,7 @@
 
                 decimal efectivoAnterior = GetEfectivoEquivalentes(anioAnterior);
                 decimal efectivoActual = GetEfectivoEquivalentes(anioActual);
-                
+
                 decimal incrementoNetoEfectivo = flujoOperacion + flujoInversion + flujoFinanciacion;
 
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Efectivo y Equivalentes al inicio del periodo", TipoFlujo = "Resumen", Orden = ordenFlujo++, Valor = efectivoAnterior });
@@ -582,7 +586,7 @@
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Efectivo y Equivalentes al final del periodo (Según BG)", TipoFlujo = "Resumen", Orden = ordenFlujo++, Valor = efectivoActual });
                 listaFlujoEfectivo.Add(new FlujoEfectivo { IdAnalisis = nuevoAnalisis.IdAnalisis, Concepto = "Comprobación (Diferencia)", TipoFlujo = "Resumen", Orden = ordenFlujo++, Valor = (efectivoAnterior + incrementoNetoEfectivo) - efectivoActual });
             }
-            
+
             // Guardamos la nueva lista en la BD
             await db.FlujosEfectivo.AddRangeAsync(listaFlujoEfectivo);
             await db.DuPonts.AddRangeAsync(listaDuPont);
@@ -782,11 +786,11 @@
     {
         foreach (var name in conceptNames)
         {
-            var concepto = bgAnio.FirstOrDefault(c => 
+            var concepto = bgAnio.FirstOrDefault(c =>
                 c.Concepto.Trim().Equals(name, StringComparison.OrdinalIgnoreCase) &&
                 (tipo == null || c.Tipo.Equals(tipo, StringComparison.OrdinalIgnoreCase)) // Filtro opcional
             );
-            
+
             if (concepto != null)
             {
                 return concepto.Valor;
@@ -807,35 +811,32 @@
         foreach (var name in conceptNames)
         {
             // Busca si cualquier concepto coincide con el nombre
-            var conceptoEncontrado = todosConceptosBG.FirstOrDefault(c => 
+            var conceptoEncontrado = todosConceptosBG.FirstOrDefault(c =>
                 c.Concepto.Trim().Equals(name, StringComparison.OrdinalIgnoreCase) &&
-                (tipo == null || c.Tipo.Equals(tipo, StringComparison.OrdinalIgnoreCase)) 
+                (tipo == null || c.Tipo.Equals(tipo, StringComparison.OrdinalIgnoreCase))
             );
 
             if (conceptoEncontrado != null)
             {
                 // Si lo encontramos, buscamos sus valores de ambos años
                 valAnterior = todosConceptosBG
-                    .FirstOrDefault(c => c.Concepto.Trim().Equals(name, StringComparison.OrdinalIgnoreCase) 
-                                    && c.Anio == anioAnterior 
+                    .FirstOrDefault(c => c.Concepto.Trim().Equals(name, StringComparison.OrdinalIgnoreCase)
+                                    && c.Anio == anioAnterior
                                     && (tipo == null || c.Tipo.Equals(tipo, StringComparison.OrdinalIgnoreCase)))?.Valor ?? 0;
-                
+
                 valActual = todosConceptosBG
-                    .FirstOrDefault(c => c.Concepto.Trim().Equals(name, StringComparison.OrdinalIgnoreCase) 
+                    .FirstOrDefault(c => c.Concepto.Trim().Equals(name, StringComparison.OrdinalIgnoreCase)
                                     && c.Anio == anioActual
                                     && (tipo == null || c.Tipo.Equals(tipo, StringComparison.OrdinalIgnoreCase)))?.Valor ?? 0;
-                
+
                 break;
             }
         }
-        
+
         // Retorna la variación (Actual - Anterior)
         return valActual - valAnterior;
     }
-    
-    /// <summary>
-    /// Busca un valor en la lista del Estado de Resultados por varios nombres posibles.
-    /// (Esta es la que te daba error)
+
     /// </summary>
     private decimal GetERVal(IEnumerable<ERConcepto> erAnio, string[] conceptNames)
     {

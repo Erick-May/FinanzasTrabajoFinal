@@ -9,7 +9,9 @@
         <NavMenu />
     </header>
 
-    <main class="main-content" style="padding-top:@headerHeightPx">
+    <SidebarPanel />
+
+    <main class="main-content main-content-with-sidebar" style="padding-top:@headerHeightPx;">
         <article class="content-container px-4">
             @Body
         </article>
@@ -28,17 +30,46 @@
         display: flex;
         align-items: center;
         gap: .5rem;
-        background: linear-gradient(90deg,#1877f2,#0d66d0);
+        background: linear-gradient(90deg, #87CEEB, #B0E0E6);
         box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     }
-
-    /* ... (El resto del CSS se queda igual) ... */
 
     .main-content {
         min-height: 100vh;
         display: flex;
         flex-direction: column;
-        background: var(--bs-body-bg);
+        background: linear-gradient(135deg, #E6F3FF 0%, #F0F8FF 50%, #FFFFFF 100%);
+        position: relative;
+        transition: padding-left 0.3s ease;
+    }
+
+    .main-content-with-sidebar {
+        padding-left: 280px;
+    }
+
+    .main-content::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: repeating-linear-gradient(45deg, transparent, transparent 120px, rgba(135, 206, 235, 0.04) 120px, rgba(135, 206, 235, 0.04) 240px), repeating-linear-gradient(-45deg, transparent, transparent 120px, rgba(176, 224, 230, 0.04) 120px, rgba(176, 224, 230, 0.04) 240px), radial-gradient(ellipse at 15% 25%, rgba(135, 206, 235, 0.12) 0%, transparent 45%), radial-gradient(ellipse at 85% 75%, rgba(176, 224, 230, 0.12) 0%, transparent 45%), radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 65%);
+        pointer-events: none;
+        z-index: 0;
+        animation: backgroundShift 20s ease-in-out infinite;
+    }
+
+    @@keyframes backgroundShift {
+        0%, 100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        50% {
+            opacity: 0.95;
+            transform: translateY(-10px);
+        }
     }
 
     .content-container {
@@ -46,16 +77,22 @@
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        align-items: center; /* centra horizontalmente */
+        align-items: center;
         justify-content: flex-start;
-        padding: 1.5rem;
+        padding: 2rem;
         width: 100%;
         box-sizing: border-box;
+        position: relative;
+        z-index: 1;
     }
 
-    @@media (max-width:767px) {
+    @@media (max-width:768px) {
         header .app-header {
             height: 48px;
+        }
+
+        .main-content-with-sidebar {
+            padding-left: 0 !important;
         }
     }
 </style>

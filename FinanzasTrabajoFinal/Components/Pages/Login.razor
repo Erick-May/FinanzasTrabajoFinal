@@ -5,10 +5,7 @@
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 
-<!--
-    ¡HEMOS QUITADO LAS CLASES DE CENTRADO DE AQUÍ!
-    Ahora el MainLayout.razor (content-container) se encarga.
--->
+
 <div class="card shadow-lg" style="width: 24rem; border-radius: 1rem;">
     <div class="card-header bg-primary text-white text-center p-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
         <h3 class="mb-0">
@@ -70,29 +67,39 @@
 
     private async Task HandleLogin()
     {
+        if (isProcessing) return; // Prevenir múltiples clicks
+
         isProcessing = true;
         errorMessage = string.Empty;
+        StateHasChanged(); // Actualizar UI inmediatamente
+
         try
         {
             var usuario = await AuthService.LoginAsync(loginModel.NombreUsuario, loginModel.Contrasena);
             if (usuario != null)
             {
                 UserStateService.LoginUser(usuario);
-                NavigationManager.NavigateTo("/");
+                await Task.Delay(100); // Pequeña pausa para asegurar que el estado se actualice
+                StateHasChanged();
+                NavigationManager.NavigateTo("/", forceLoad: false);
             }
             else
             {
                 errorMessage = "Credenciales incorrectas. Intenta de nuevo.";
+                StateHasChanged();
             }
         }
         catch (Exception ex)
         {
             errorMessage = "Ocurrió un error inesperado. Intente de nuevo.";
             Console.WriteLine(ex.Message); // Log para depuración
+            StateHasChanged();
         }
         finally
         {
             isProcessing = false;
+            StateHasChanged();
         }
     }
 }
+

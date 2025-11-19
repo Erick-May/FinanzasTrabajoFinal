@@ -6,17 +6,15 @@
 @implements IDisposable
 
 <style>
-    /* (El CSS no cambia, se queda igual que el original) */
     :root {
-        --accent-1: #0f766e;
-        --accent-2: #06b6d4;
-        --text-on-light: #0b2540; /* azul oscuro legible sobre blanco */
+        --accent-1: #87CEEB;
+        --accent-2: #B0E0E6;
+        --text-on-light: #0b2540;
         --muted-on-light: #6b7280;
-        --glass-bg: rgba(255,255,255,0.6);
+        --glass-bg: rgba(255,255,255,0.9);
         --card-radius: 1rem;
     }
 
-    /* Forzar colores oscuros sobre fondos claros */
     .hero-card,
     .glass-card {
         color: var(--text-on-light);
@@ -30,62 +28,210 @@
         }
 
     .home-hero {
-        background: linear-gradient(135deg, rgba(6,182,212,0.08) 0%, rgba(15,118,110,0.04) 50%), url('/images/abstract-finance.svg');
+        background: linear-gradient(135deg, rgba(135,206,235,0.2) 0%, rgba(176,224,230,0.15) 50%, rgba(230,243,255,0.1) 100%);
         background-size: cover;
         background-position: center;
         padding: 4rem 0;
         width: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .home-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 80px, rgba(135, 206, 235, 0.06) 80px, rgba(135, 206, 235, 0.06) 160px), repeating-linear-gradient(-45deg, transparent, transparent 100px, rgba(176, 224, 230, 0.06) 100px, rgba(176, 224, 230, 0.06) 200px), radial-gradient(ellipse at 25% 35%, rgba(135, 206, 235, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 75% 65%, rgba(176, 224, 230, 0.1) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+            background-size: 160px 160px, 200px 200px, 400px 400px, 400px 400px, 600px 600px;
+            animation: backgroundFlow 25s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+    @@keyframes backgroundFlow {
+        0%, 100% {
+            transform: translate(0, 0) scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: translate(-10px, -10px) scale(1.02);
+            opacity: 0.95;
+        }
     }
 
     .hero-card {
         background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));
         border-radius: var(--card-radius);
-        box-shadow: 0 10px 30px rgba(15,20,25,0.06);
-        padding: 2rem;
-        backdrop-filter: blur(4px);
+        box-shadow: 0 10px 30px rgba(135,206,235,0.15);
+        padding: 2.5rem;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.5);
+        position: relative;
+        z-index: 1;
+        animation: fadeInScale 0.8s ease-out;
+    }
+
+    @@keyframes fadeInScale {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
 
     .brand-badge {
         display: inline-flex;
         align-items: center;
         gap: .5rem;
-        padding: .25rem .6rem;
-        background: linear-gradient(90deg,var(--accent-1), var(--accent-2));
-        color: var(--text-on-light); /* cambiado de white a azul oscuro */
-        border-radius: .6rem;
-        font-weight: 600;
-        font-size: .9rem;
-        box-shadow: 0 6px 18px rgba(6,182,212,0.14);
+        padding: .4rem .8rem;
+        background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+        color: var(--text-on-light);
+        border-radius: .8rem;
+        font-weight: 700;
+        font-size: .95rem;
+        box-shadow: 0 4px 12px rgba(135,206,235,0.3);
+        border: 1px solid rgba(255,255,255,0.5);
     }
 
     .features-grid .glass-card {
-        background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.9));
-        border-radius: .9rem;
-        padding: 1.4rem;
-        transition: transform .18s ease, box-shadow .18s ease;
-        box-shadow: 0 6px 18px rgba(10,20,30,0.04);
+        background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));
+        border-radius: 1rem;
+        padding: 1.5rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 16px rgba(135,206,235,0.12);
+        border: 1px solid rgba(255,255,255,0.5);
+        backdrop-filter: blur(10px);
+        animation: fadeInUp 0.6s ease-out backwards;
     }
 
-    /* (El resto del CSS sigue igual) */
+        .features-grid .glass-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .features-grid .glass-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .features-grid .glass-card:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .features-grid .glass-card:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .features-grid .glass-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 12px 32px rgba(135,206,235,0.3);
+        border-color: rgba(135,206,235,0.4);
+    }
+
     .feature-icon {
-        width: 48px;
-        height: 48px;
+        width: 56px;
+        height: 56px;
         display: inline-grid;
         place-items: center;
-        border-radius: .8rem;
-        background: linear-gradient(180deg, rgba(6,182,212,0.12), rgba(15,118,110,0.06));
-        color: var(--accent-1);
-        font-size: 1.2rem;
-        margin-bottom: .6rem;
+        border-radius: 1rem;
+        background: linear-gradient(135deg, rgba(135,206,235,0.25), rgba(176,224,230,0.2));
+        color: #0b2540;
+        margin-bottom: .8rem;
+        border: 1px solid rgba(135,206,235,0.3);
+        padding: 0.75rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+
+        .feature-icon::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, rgba(135,206,235,0.4), rgba(176,224,230,0.3));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
+        }
+
+    .glass-card:hover .feature-icon {
+        transform: scale(1.1) rotate(5deg);
+        box-shadow: 0 8px 20px rgba(135,206,235,0.3);
+    }
+
+        .glass-card:hover .feature-icon::after {
+            opacity: 1;
+        }
+
+    .feature-icon svg {
+        width: 100%;
+        height: 100%;
+        stroke: #0b2540;
+        transition: transform 0.3s ease;
+    }
+
+    .glass-card:hover .feature-icon svg {
+        transform: scale(1.1);
     }
 
     .cta-btn {
         border-radius: .8rem;
-        padding: .6rem 1.2rem;
-        box-shadow: 0 8px 22px rgba(6,182,212,0.08);
+        padding: .7rem 1.5rem;
+        box-shadow: 0 4px 12px rgba(135,206,235,0.25);
         font-weight: 600;
         color: var(--text-on-light);
+        border: 1px solid rgba(255,255,255,0.5);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
     }
+
+        .cta-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+
+        .cta-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(135,206,235,0.4);
+        }
+
+        .cta-btn:active {
+            transform: translateY(-1px) scale(0.98);
+        }
 
     @@media (max-width: 767px) {
         .home-hero {
@@ -115,14 +261,21 @@
 
                     @if (UserStateService.IsLoggedIn)
                     {
-                        <h1 class="h2 mb-2">Hola, @UserStateService.CurrentUser?.NombreUsuario 👋</h1>
+                        <h1 class="h2 mb-2">Hola, @UserStateService.CurrentUser?.NombreUsuario</h1>
                         <p class="text-muted mb-3">
                             Analiza
                             tu información financiera en segundos. Sube archivos, revisa resultados y genera reportes profesionales.
                         </p>
 
-                        <div class="d-flex gap-2 flex-wrap">
-                            <a class="btn cta-btn" href="upload" style="background:linear-gradient(90deg,var(--accent-1),var(--accent-2));">Nuevo Análisis</a>
+                        <div class="d-flex gap-2 flex-wrap align-items-center">
+                            <a class="btn cta-btn btn-lg d-flex align-items-center gap-2" href="upload" style="background:linear-gradient(90deg,var(--accent-1),var(--accent-2));">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                                Cargar Archivo
+                            </a>
 
                             <a class="btn btn-outline-secondary cta-btn" href="history">Ver Historial</a>
                             <a class="btn btn-outline-primary cta-btn" href="reports">Reportes</a>
@@ -149,7 +302,13 @@
 
             <div class="col-md-4">
                 <div class="glass-card">
-                    <div class="feature-icon">📤</div>
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </div>
                     <h5 class="mb-1">Carga fácil</h5>
                     <p class="text-muted small mb-0">Soporte para Excel y CSV, mapeo automático de columnas.</p>
 
@@ -157,7 +316,15 @@
             </div>
             <div class="col-md-4">
                 <div class="glass-card">
-                    <div class="feature-icon">📊</div>
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M3 9H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M9 21V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M12 15V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M15 18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </div>
                     <h5 class="mb-1">Informes inteligentes</h5>
 
                     <p class="text-muted small mb-0">Ratios, horizontales y verticales listos para exportar.</p>
@@ -166,7 +333,19 @@
             <div class="col-md-4">
                 <div class="glass-card">
 
-                    <div class="feature-icon">⚙️</div>
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                            <path d="M12 1V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M12 21V23" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M4.22 4.22L5.64 5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M18.36 18.36L19.78 19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M1 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M21 12H23" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M4.22 19.78L5.64 18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M18.36 5.64L19.78 4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </div>
                     <h5 class="mb-1">Configuración rápida</h5>
                     <p class="text-muted small mb-0">Ajusta periodos, filtros y parámetros de análisis.</p>
                 </div>
@@ -174,12 +353,12 @@
 
             <div class="col-md-4">
                 <div class="hero-card text-center">
-
-                    <svg width="120" height="120" viewBox="0 0 24 24" fill="none" class="mb-3" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="1.5" y="4.5" width="21" height="15" rx="2" stroke="rgba(6,182,212,0.9)" stroke-width="1.2" />
-                        <path d="M6 10h5v5H6z" fill="rgba(6,182,212,0.12)" stroke="rgba(6,182,212,0.9)" />
-                    </svg>
-
+                    <div class="feature-icon mx-auto mb-3" style="width: 80px; height: 80px;">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
                     <h6 class="mb-1">Seguridad y privacidad</h6>
                     <p class="text-muted small">Tus datos cifrados y almacenados de forma segura.</p>
                 </div>

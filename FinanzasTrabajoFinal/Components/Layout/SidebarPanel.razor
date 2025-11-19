@@ -1,0 +1,589 @@
+@implements IDisposable
+@using FinanzasTrabajoFinal.Service
+@using FinanzasTrabajoFinal.MODELS
+@using Microsoft.JSInterop
+@using Microsoft.EntityFrameworkCore
+@inject UserStateService UserStateService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDbContextFactory<FinanzasContext> DbFactory
+
+<div class="sidebar-panel @(isCollapsed ? "collapsed" : "")" data-collapsed="@isCollapsed.ToString().ToLower()">
+    <div class="sidebar-header">
+        <button class="sidebar-toggle" @onclick="ToggleSidebar" aria-label="Toggle sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+        </button>
+        @if (!isCollapsed)
+        {
+            <h3 class="sidebar-title">Análisis Financieros</h3>
+        }
+    </div>
+
+    <nav class="sidebar-nav">
+        @if (!isCollapsed)
+        {
+            <div class="nav-section">
+                <div class="nav-section-title">Análisis Básicos</div>
+                <NavLink href="/" class="nav-link" Match="NavLinkMatch.All">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">Inicio</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Análisis Vertical</div>
+                <button class="nav-link" @onclick="@(() => NavigateToAnalysis("vertical-bg"))" style="width: 100%; border: none; background: none; text-align: left;">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M3 9H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M9 21V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M12 15V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M15 18V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">Análisis Vertical (BG)</span>
+                </button>
+                <button class="nav-link" @onclick="@(() => NavigateToAnalysis("vertical-er"))" style="width: 100%; border: none; background: none; text-align: left;">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 3V21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M21 10H16V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">Análisis Vertical (ER)</span>
+                </button>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Análisis Horizontal</div>
+                <button class="nav-link" @onclick="@(() => NavigateToAnalysis("horizontal-bg"))" style="width: 100%; border: none; background: none; text-align: left;">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M6 9L3 12L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M18 9L21 12L18 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">Análisis Horizontal</span>
+                </button>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Capitales</div>
+                <button class="nav-link" @onclick="@(() => NavigateToAnalysis("cnt"))" style="width: 100%; border: none; background: none; text-align: left;">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">Capitales Netos</span>
+                </button>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Flujo de Fondos</div>
+                <button class="nav-link" @onclick="@(() => NavigateToAnalysis("eoaf"))" style="width: 100%; border: none; background: none; text-align: left;">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">Origen y Aplicación</span>
+                </button>
+                <button class="nav-link" @onclick="@(() => NavigateToAnalysis("flujo-efectivo"))" style="width: 100%; border: none; background: none; text-align: left;">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 16V8C20.9996 7.64928 20.9071 7.30481 20.7315 7.00116C20.556 6.69751 20.3037 6.44536 20 6.27L13 2.27C12.696 2.09446 12.3511 2.00205 12 2.00205C11.6489 2.00205 11.304 2.09446 11 2.27L4 6.27C3.69626 6.44536 3.44398 6.69751 3.26846 7.00116C3.09294 7.30481 3.00036 7.64928 3 8V16C3.00036 16.3507 3.09294 16.6952 3.26846 16.9988C3.44398 17.3025 3.69626 17.5546 4 17.73L11 21.73C11.304 21.9055 11.6489 21.9979 12 21.9979C12.3511 21.9979 12.696 21.9055 13 21.73L20 17.73C20.3037 17.5546 20.556 17.3025 20.7315 16.9988C20.9071 16.6952 20.9996 16.3507 21 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M3.27002 6.96L12 12.01L20.73 6.96" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">Flujo de Efectivo</span>
+                </button>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Razones y Ratios</div>
+                <button class="nav-link" @onclick="@(() => NavigateToAnalysis("razones"))" style="width: 100%; border: none; background: none; text-align: left;">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 3H8V8H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M16 3H21V8H16V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M16 16H21V21H16V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M3 16H8V21H3V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M3 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M12 3V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">Razones Financieras</span>
+                </button>
+                <button class="nav-link" @onclick="@(() => NavigateToAnalysis("dupont"))" style="width: 100%; border: none; background: none; text-align: left;">
+                    <span class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <circle cx="12" cy="12" r="2" fill="currentColor" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">Sistema DuPont</span>
+                </button>
+            </div>
+
+            @if (UserStateService.IsLoggedIn)
+            {
+                <div class="nav-section mt-auto">
+                    <div class="nav-section-title">Usuario</div>
+                    <NavLink href="/logout" class="nav-link">
+                        <span class="nav-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                        </span>
+                        <span class="nav-text">Cerrar Sesión</span>
+                    </NavLink>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="nav-section">
+                <NavLink href="/" class="nav-link-icon-only" Match="NavLinkMatch.All" title="Inicio">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </NavLink>
+                <button class="nav-link-icon-only" @onclick="@(() => NavigateToAnalysis("vertical-bg"))" title="Análisis Vertical (BG)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3 9H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        <path d="M9 21V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+                <button class="nav-link-icon-only" @onclick="@(() => NavigateToAnalysis("vertical-er"))" title="Análisis Vertical (ER)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 3V21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <button class="nav-link-icon-only" @onclick="@(() => NavigateToAnalysis("horizontal-bg"))" title="Análisis Horizontal">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        <path d="M6 9L3 12L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M18 9L21 12L18 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <button class="nav-link-icon-only" @onclick="@(() => NavigateToAnalysis("cnt"))" title="Capitales Netos">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                        <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+                <button class="nav-link-icon-only" @onclick="@(() => NavigateToAnalysis("eoaf"))" title="Origen y Aplicación">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <button class="nav-link-icon-only" @onclick="@(() => NavigateToAnalysis("flujo-efectivo"))" title="Flujo de Efectivo">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 16V8C20.9996 7.64928 20.9071 7.30481 20.7315 7.00116C20.556 6.69751 20.3037 6.44536 20 6.27L13 2.27C12.696 2.09446 12.3511 2.00205 12 2.00205C11.6489 2.00205 11.304 2.09446 11 2.27L4 6.27C3.69626 6.44536 3.44398 6.69751 3.26846 7.00116C3.09294 7.30481 3.00036 7.64928 3 8V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3.27002 6.96L12 12.01L20.73 6.96" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <button class="nav-link-icon-only" @onclick="@(() => NavigateToAnalysis("razones"))" title="Razones Financieras">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 3H8V8H3V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M16 3H21V8H16V3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M3 12H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        <path d="M12 3V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+                <button class="nav-link-icon-only" @onclick="@(() => NavigateToAnalysis("dupont"))" title="Sistema DuPont">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                        <circle cx="12" cy="12" r="2" fill="currentColor" />
+                    </svg>
+                </button>
+                @if (UserStateService.IsLoggedIn)
+                {
+                    <NavLink href="/logout" class="nav-link-icon-only" title="Cerrar Sesión">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                    </NavLink>
+                }
+            </div>
+        }
+    </nav>
+</div>
+
+<style>
+    .sidebar-panel {
+        position: fixed;
+        left: 0;
+        top: 64px;
+        height: calc(100vh - 64px);
+        width: 280px;
+        background: linear-gradient(180deg, rgba(173, 216, 230, 0.95) 0%, rgba(135, 206, 250, 0.95) 100%);
+        backdrop-filter: blur(10px);
+        border-right: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 2px 0 15px rgba(135, 206, 235, 0.2);
+        z-index: 1000;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        animation: slideInLeft 0.5s ease-out;
+    }
+
+    @@keyframes slideInLeft {
+        from {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .sidebar-panel.collapsed {
+        width: 70px;
+    }
+
+
+    .sidebar-header {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .sidebar-toggle {
+        background: rgba(255, 255, 255, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 8px;
+        padding: 0.5rem;
+        cursor: pointer;
+        color: #0b2540;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        flex-shrink: 0;
+    }
+
+        .sidebar-toggle:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(1.1) rotate(90deg);
+            box-shadow: 0 4px 12px rgba(135, 206, 235, 0.3);
+        }
+
+        .sidebar-toggle:active {
+            transform: scale(0.95);
+        }
+
+    .sidebar-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #0b2540;
+        margin: 0;
+        white-space: nowrap;
+    }
+
+    .sidebar-panel.collapsed .sidebar-title {
+        display: none;
+    }
+
+    .sidebar-nav {
+        flex: 1;
+        padding: 1rem 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .nav-section {
+        padding: 0 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .nav-section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: rgba(11, 37, 64, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+        padding-left: 0.5rem;
+    }
+
+    .sidebar-panel.collapsed .nav-section-title {
+        display: none;
+    }
+
+    .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        color: #0b2540;
+        text-decoration: none;
+        border-radius: 10px;
+        margin-bottom: 0.25rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 500;
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid transparent;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .nav-link:hover::before {
+            left: 100%;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateX(6px) scale(1.02);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 12px rgba(135, 206, 235, 0.2);
+        }
+
+        .nav-link:active {
+            transform: translateX(4px) scale(0.98);
+        }
+
+    .nav-link-icon-only {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem;
+        color: #0b2540;
+        text-decoration: none;
+        border-radius: 10px;
+        margin: 0.25rem auto;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 45px;
+        height: 45px;
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid transparent;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .nav-link-icon-only::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+
+        .nav-link-icon-only:hover::before {
+            width: 100%;
+            height: 100%;
+        }
+
+        .nav-link-icon-only:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(1.15) rotate(5deg);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 12px rgba(135, 206, 235, 0.25);
+        }
+
+        .nav-link-icon-only:active {
+            transform: scale(1.05) rotate(0deg);
+        }
+
+    .nav-icon {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        color: currentColor;
+    }
+
+        .nav-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+    .nav-text {
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    .sidebar-panel.collapsed .nav-text {
+        display: none;
+    }
+
+    .mt-auto {
+        margin-top: auto;
+    }
+
+    @@media (max-width: 768px) {
+        .sidebar-panel {
+            transform: translateX(-100%);
+            width: 280px;
+        }
+
+            .sidebar-panel:not(.collapsed) {
+                transform: translateX(0);
+            }
+
+            .sidebar-panel.collapsed {
+                transform: translateX(-100%);
+            }
+    }
+
+    /* Scrollbar styling */
+    .sidebar-panel::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .sidebar-panel::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-panel::-webkit-scrollbar-thumb {
+        background: rgba(11, 37, 64, 0.3);
+        border-radius: 3px;
+    }
+
+        .sidebar-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(11, 37, 64, 0.5);
+        }
+</style>
+
+@code {
+    private bool isCollapsed = false;
+
+    private async Task ToggleSidebar()
+    {
+        isCollapsed = !isCollapsed;
+        await UpdateMainContentPadding();
+    }
+
+    private async Task UpdateMainContentPadding()
+    {
+        try
+        {
+            var padding = !isCollapsed ? 280 : 70;
+            await JSRuntime.InvokeVoidAsync("eval", $"document.querySelector('.main-content-with-sidebar').style.paddingLeft = '{padding}px';");
+        }
+        catch
+        {
+            // Ignorar errores de JS si el DOM no está listo
+        }
+    }
+
+    private async Task NavigateToAnalysis(string tabId)
+    {
+        if (!UserStateService.IsLoggedIn)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+
+            // Buscar el análisis más reciente del usuario actual
+            var ultimoAnalisis = await db.AnalisisFinancieros
+                .Where(a => a.IdUsuario == UserStateService.CurrentUser.IdUsuario)
+                .OrderByDescending(a => a.FechaAnalisis)
+                .FirstOrDefaultAsync();
+
+            if (ultimoAnalisis != null)
+            {
+                // Navegar al análisis con el tab específico
+                NavigationManager.NavigateTo($"/resultados/{ultimoAnalisis.IdAnalisis}?tab={tabId}");
+            }
+            else
+            {
+                // Si no tiene análisis, llevarlo a cargar archivo
+                NavigationManager.NavigateTo("/upload");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al navegar al análisis: {ex.Message}");
+            NavigationManager.NavigateTo("/upload");
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        UserStateService.OnChange += HandleUserStateChange;
+        await UpdateMainContentPadding();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await UpdateMainContentPadding();
+        }
+    }
+
+    private async void HandleUserStateChange()
+    {
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en HandleUserStateChange: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        UserStateService.OnChange -= HandleUserStateChange;
+    }
+}
