@@ -1,5 +1,6 @@
 ﻿@page "/resultados/{IdAnalisis:int}"
 @rendermode InteractiveServer
+@implements IDisposable
 
 @using FinanzasTrabajoFinal.MODELS
 @using FinanzasTrabajoFinal.Service
@@ -446,10 +447,49 @@ else
 
     // --- CÓDIGO PARA CONTROLAR LAS PESTAÑAS (TABS) ---
     private string activeTabId = "vertical-bg"; // ID de la pestaña activa por defecto
+    private string? lastUrl = null; // Para detectar cambios en la URL
 
     private void SetActiveTab(string tabId)
     {
         activeTabId = tabId;
+        StateHasChanged(); // Forzar actualización de la UI
+    }
+
+    private void UpdateActiveTabFromUrl()
+    {
+        try
+        {
+            var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+            var queryParams = QueryHelpers.ParseQuery(uri.Query);
+            if (queryParams.TryGetValue("tab", out var tabValue))
+            {
+                var tabId = tabValue.ToString();
+                // Validar que el tabId sea válido
+                var validTabs = new[] { "vertical-bg", "vertical-er", "horizontal-bg", "cnt", "eoaf", "razones", "flujo-efectivo", "dupont" };
+                if (validTabs.Contains(tabId))
+                {
+                    if (activeTabId != tabId)
+                    {
+                        activeTabId = tabId;
+                        StateHasChanged();
+                    }
+                }
+            }
+            else
+            {
+                // Si no hay parámetro tab en la URL, usar el default
+                if (activeTabId != "vertical-bg")
+                {
+                    activeTabId = "vertical-bg";
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log para depuración
+            Console.WriteLine($"Error al actualizar tab desde URL: {ex.Message}");
+        }
     }
 
     private string GetButtonClass(string tabId)
@@ -469,7 +509,12 @@ else
 
     private string GetPaneStyle(string tabId)
     {
-        return tabId == activeTabId ? "display: block;" : "display: none;";
+        // Solo mostrar el tab activo, ocultar todos los demás
+        if (tabId == activeTabId)
+        {
+            return "display: block !important;";
+        }
+        return "display: none !important;";
     }
     // --- FIN DEL CÓDIGO DE PESTAÑAS ---
 
@@ -479,13 +524,12 @@ else
     {
         try
         {
+            // Suscribirse a cambios de navegación
+            NavigationManager.LocationChanged += OnLocationChanged;
+
             // Leer el parámetro 'tab' de la URL si existe
-            var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-            var queryParams = QueryHelpers.ParseQuery(uri.Query);
-            if (queryParams.TryGetValue("tab", out var tabValue))
-            {
-                activeTabId = tabValue.ToString();
-            }
+            UpdateActiveTabFromUrl();
+            lastUrl = NavigationManager.Uri;
 
             await using var db = await DbFactory.CreateDbContextAsync();
 
@@ -638,6 +682,28 @@ else
         {
             isLoading = false;
         }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Asegurar que el tab correcto se muestre después del primer render
+            UpdateActiveTabFromUrl();
+            StateHasChanged();
+        }
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        // Cuando cambia la ubicación, actualizar el tab activo
+        UpdateActiveTabFromUrl();
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
 

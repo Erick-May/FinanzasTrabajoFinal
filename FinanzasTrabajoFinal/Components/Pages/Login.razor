@@ -5,57 +5,291 @@
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 
+<style>
+    :root {
+        --accent-1: #87CEEB;
+        --accent-2: #B0E0E6;
+        --text-on-light: #0b2540;
+        --muted-on-light: #6b7280;
+        --card-radius: 1rem;
+    }
 
-<div class="card shadow-lg" style="width: 24rem; border-radius: 1rem;">
-    <div class="card-header bg-primary text-white text-center p-4" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
-        <h3 class="mb-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-bar-chart-line-fill me-2" viewBox="0 0 16 16">
-                <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1z" />
-            </svg>
-            Inicio de Sesión
-        </h3>
-    </div>
-    <div class="card-body p-4">
-        <EditForm Model="loginModel" OnValidSubmit="HandleLogin" FormName="LoginForm">
-            <DataAnnotationsValidator />
+    .login-container {
+        min-height: calc(100vh - 64px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(135,206,235,0.2) 0%, rgba(176,224,230,0.15) 50%, rgba(230,243,255,0.1) 100%);
+    }
 
-            <div class="form-floating mb-3">
-                <InputText id="nombreUsuario" @bind-Value="loginModel.NombreUsuario" class="form-control" placeholder="Usuario" />
-                <label for="nombreUsuario">Usuario</label>
-                <ValidationMessage For="@(() => loginModel.NombreUsuario)" class="text-danger" />
-            </div>
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 80px, rgba(135, 206, 235, 0.06) 80px, rgba(135, 206, 235, 0.06) 160px), repeating-linear-gradient(-45deg, transparent, transparent 100px, rgba(176, 224, 230, 0.06) 100px, rgba(176, 224, 230, 0.06) 200px), radial-gradient(ellipse at 25% 35%, rgba(135, 206, 235, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 75% 65%, rgba(176, 224, 230, 0.1) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+            background-size: 160px 160px, 200px 200px, 400px 400px, 400px 400px, 600px 600px;
+            animation: backgroundFlow 25s ease-in-out infinite;
+            pointer-events: none;
+        }
 
-            <div class="form-floating mb-4">
-                <InputText id="contrasena" @bind-Value="loginModel.Contrasena" type="password" class="form-control" placeholder="Contraseña" />
-                <label for="contrasena">Contraseña</label>
-                <ValidationMessage For="@(() => loginModel.Contrasena)" class="text-danger" />
-            </div>
+    @@keyframes backgroundFlow {
+        0%, 100% {
+            transform: translate(0, 0) scale(1);
+            opacity: 1;
+        }
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger" role="alert">
-                    @errorMessage
-                </div>
+        50% {
+            transform: translate(-10px, -10px) scale(1.02);
+            opacity: 0.95;
+        }
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 24rem;
+        background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));
+        border-radius: var(--card-radius);
+        box-shadow: 0 10px 30px rgba(135,206,235,0.15);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.5);
+        position: relative;
+        z-index: 1;
+        animation: fadeInScale 0.8s ease-out;
+        overflow: hidden;
+    }
+
+    @@keyframes fadeInScale {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    .login-header {
+        background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+        color: var(--text-on-light);
+        text-align: center;
+        padding: 2rem;
+        border-top-left-radius: var(--card-radius);
+        border-top-right-radius: var(--card-radius);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .login-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+    @@keyframes shimmer {
+        0%, 100% {
+            transform: translate(-50%, -50%) rotate(0deg);
+        }
+
+        50% {
+            transform: translate(-50%, -50%) rotate(180deg);
+        }
+    }
+
+    .login-header h3 {
+        margin: 0;
+        font-weight: 700;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .login-body {
+        padding: 2rem;
+        color: var(--text-on-light);
+    }
+
+    .form-floating > .form-control {
+        border: 1px solid rgba(135, 206, 235, 0.3);
+        border-radius: 0.5rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+        .form-floating > .form-control:focus {
+            border-color: var(--accent-1);
+            box-shadow: 0 0 0 0.2rem rgba(135, 206, 235, 0.25);
+        }
+
+    .form-floating > label {
+        color: var(--muted-on-light);
+    }
+
+    .btn-login {
+        background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+        color: var(--text-on-light);
+        border: 1px solid rgba(255,255,255,0.5);
+        border-radius: 0.8rem;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(135,206,235,0.25);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+
+        .btn-login:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(135,206,235,0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+    .alert-danger {
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.3);
+        color: #dc3545;
+        border-radius: 0.5rem;
+        animation: shake 0.5s ease-in-out;
+    }
+
+    @@keyframes shake {
+        0%, 100% {
+            transform: translateX(0);
+        }
+
+        25% {
+            transform: translateX(-10px);
+        }
+
+        75% {
+            transform: translateX(10px);
+        }
+    }
+
+    .login-link {
+        color: var(--accent-1);
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+        .login-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+            transition: width 0.3s ease;
+        }
+
+        .login-link:hover {
+            color: var(--text-on-light);
+        }
+
+            .login-link:hover::after {
+                width: 100%;
             }
 
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary btn-lg" disabled="@isProcessing">
-                    @if (isProcessing)
-                    {
-                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        <span class="visually-hidden">Loading...</span>
-                    }
-                    else
-                    {
-                        <span>Entrar</span>
-                    }
-                </button>
+    hr {
+        border-color: rgba(135, 206, 235, 0.2);
+    }
+</style>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M11 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3h1V7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7h1z" />
+                </svg>
+                Inicio de Sesión
+            </h3>
+        </div>
+        <div class="login-body">
+            <EditForm Model="loginModel" OnValidSubmit="HandleLogin" FormName="LoginForm">
+                <DataAnnotationsValidator />
+
+                <div class="form-floating mb-3">
+                    <InputText id="nombreUsuario" @bind-Value="loginModel.NombreUsuario" class="form-control" placeholder="Usuario" />
+                    <label for="nombreUsuario">Usuario</label>
+                    <ValidationMessage For="@(() => loginModel.NombreUsuario)" class="text-danger" />
+                </div>
+
+                <div class="form-floating mb-4">
+                    <InputText id="contrasena" @bind-Value="loginModel.Contrasena" type="password" class="form-control" placeholder="Contraseña" />
+                    <label for="contrasena">Contraseña</label>
+                    <ValidationMessage For="@(() => loginModel.Contrasena)" class="text-danger" />
+                </div>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+                }
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-login btn-lg" disabled="@isProcessing">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span class="visually-hidden">Loading...</span>
+                        }
+                        else
+                        {
+                            <span>Entrar</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+            <hr class="my-4">
+            <div class="text-center">
+                <p class="mb-0" style="color: var(--muted-on-light);">¿No tienes una cuenta?</p>
+                <a href="register" class="login-link">Regístrate aquí</a>
             </div>
-        </EditForm>
-        <hr class="my-4">
-        <div class="text-center">
-            <p class="mb-0">¿No tienes una cuenta?</p>
-            <a href="register">Regístrate aquí</a>
         </div>
     </div>
 </div>
@@ -102,4 +336,3 @@
         }
     }
 }
-
