@@ -40,6 +40,12 @@
                 </li>
 
                 <li class="nav-item">
+                    <NavLink class="nav-link fw-bold btn-custom-historial" href="historial">
+                        Historial
+                    </NavLink>
+                </li>
+
+                <li class="nav-item">
                     @if (UserStateService.AnalisisRealizado != null)
                     {
                         <NavLink class="nav-link fw-bold btn-custom-resultados" href="@($"resultados/{UserStateService.AnalisisRealizado.IdAnalisis}")">
@@ -48,7 +54,7 @@
                     }
                     else
                     {
-                        <span class="nav-link fw-bold text-muted disabled" style="cursor: not-allowed; opacity: 0.5; border: 2px solid #ccc; border-radius: 8px; padding: 5px 15px;" title="Primero debes cargar un archivo">
+                        <span class="nav-link fw-bold text-muted disabled" style="cursor: not-allowed; opacity: 0.5; border: 2px solid #ccc; border-radius: 8px; padding: 5px 15px;" title="Selecciona un análisis del historial o carga uno nuevo">
                             Resultados
                         </span>
                     }
@@ -164,7 +170,7 @@
 
     /* === ESTILOS BOTONES === */
 
-    /* Botón Cargar: Texto Negro, Borde Azul Oscuro */
+    /* Botón Cargar */
     .btn-custom-cargar {
         color: #000 !important;
         border: 2px solid #003366;
@@ -178,7 +184,21 @@
             color: #fff !important;
         }
 
-    /* Botón Resultados: Texto Negro, Borde Gris/Neutro */
+    /* Botón Historial (NUEVO) */
+    .btn-custom-historial {
+        color: #000 !important;
+        border: 2px solid #FFA500; /* Naranja */
+        border-radius: 8px;
+        padding: 5px 15px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-custom-historial:hover {
+            background-color: #FFA500;
+            color: #fff !important;
+        }
+
+    /* Botón Resultados */
     .btn-custom-resultados {
         color: #000 !important;
         border: 2px solid #555;
@@ -192,7 +212,7 @@
             color: #fff !important;
         }
 
-    /* Botón Reportes: Texto Negro, Borde Verde Claro */
+    /* Botón Reportes */
     .btn-custom-reportes {
         color: #000 !important;
         border: 2px solid #90EE90; /* Verde claro */
