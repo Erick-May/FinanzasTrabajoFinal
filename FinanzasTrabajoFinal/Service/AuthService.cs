@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using BCrypt.Net;
+using FinanzasTrabajoFinal.Data;
+using FinanzasTrabajoFinal.MODELS;
 
 // 1. IMPORTANTE: Asegúrate de que el namespace coincida con tu proyecto y la carpeta.
 namespace FinanzasTrabajoFinal.Service

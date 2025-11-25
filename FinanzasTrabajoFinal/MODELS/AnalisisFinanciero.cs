@@ -1,26 +1,32 @@
-﻿using FinanzasTrabajoFinal.MODELS; // Asumo que Usuarios está en este namespace
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Generic; // Necesario para la lista
 
-[Table("ANALISIS_FINANCIERO")]
-public class AnalisisFinanciero
+namespace FinanzasTrabajoFinal.MODELS // <--- ESTO FALTABA
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    [Column("ID_ANALISIS")]
-    public int IdAnalisis { get; set; }
+    [Table("ANALISIS_FINANCIERO")]
+    public class AnalisisFinanciero
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("ID_ANALISIS")]
+        public int IdAnalisis { get; set; }
 
-    [Column("ID_USUARIO")]
-    public int IdUsuario { get; set; }
+        [Column("ID_USUARIO")]
+        public int IdUsuario { get; set; }
 
-    [Column("FECHA_ANALISIS")]
-    public DateTime FechaAnalisis { get; set; } = DateTime.Now;
+        [Column("FECHA_ANALISIS")]
+        public DateTime FechaAnalisis { get; set; } = DateTime.Now;
 
-    [Column("NOMBRE_ARCHIVO")]
-    public string NombreArchivo { get; set; }
+        [Column("NOMBRE_ARCHIVO")]
+        public string NombreArchivo { get; set; }
 
-    // Propiedad de navegación (Foreign Key)
-    [ForeignKey(nameof(IdUsuario))]
-    public Usuarios Usuario { get; set; }
-  
-} //Hola Rodrigo
+        // Propiedad de navegación (Usuario)
+        [ForeignKey(nameof(IdUsuario))]
+        public Usuarios Usuario { get; set; }
+
+        // === ESTA ES LA PROPIEDAD QUE FALTABA PARA LOS GRÁFICOS ===
+        // Permite acceder a la lista de cuentas del Balance General de este análisis
+        public virtual ICollection<BGConcepto> BGConceptos { get; set; } = new List<BGConcepto>();
+    }
+}

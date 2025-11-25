@@ -1,31 +1,40 @@
-﻿namespace FinanzasTrabajoFinal.Service
+﻿using FinanzasTrabajoFinal.MODELS; // <--- IMPORTANTE: Necesario para reconocer AnalisisFinanciero
+
+namespace FinanzasTrabajoFinal.Service
 {
     public class UserStateService
     {
         // El usuario actual. Es 'null' si nadie ha iniciado sesión.
         public Usuarios? CurrentUser { get; private set; }
 
-        // Un evento que se dispara cuando el estado del usuario cambia.
+        // === NUEVO: Propiedad para guardar el análisis y compartirlo entre páginas ===
+        public AnalisisFinanciero? AnalisisRealizado { get; private set; }
+
+        // Un evento que se dispara cuando el estado cambia.
         public event Action? OnChange;
 
-        // Propiedad para saber si hay alguien logueado
         public bool IsLoggedIn => CurrentUser != null;
 
-        // Método que se llama desde Login.razor
         public void LoginUser(Usuarios user)
         {
             CurrentUser = user;
             NotifyStateChanged();
         }
 
-        // Método que se llama desde Logout.razor
         public void LogoutUser()
         {
             CurrentUser = null;
+            AnalisisRealizado = null; // Limpiamos el análisis al cerrar sesión
             NotifyStateChanged();
         }
 
-        // Este método es el que "avisa" al NavMenu y al Home que deben refrescarse
+        // === NUEVO: Método para guardar el análisis (úsalo en Upload o Resultados) ===
+        public void SetAnalisis(AnalisisFinanciero analisis)
+        {
+            AnalisisRealizado = analisis;
+            NotifyStateChanged();
+        }
+
         private void NotifyStateChanged() => OnChange?.Invoke();
     }
 }

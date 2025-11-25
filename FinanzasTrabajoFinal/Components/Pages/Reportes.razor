@@ -1,0 +1,309 @@
+﻿@page "/reportes"
+@using FinanzasTrabajoFinal.Data
+@using FinanzasTrabajoFinal.MODELS
+@using FinanzasTrabajoFinal.Service
+@inject UserStateService UserState
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavManager
+
+<PageTitle>Reportes Financieros</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-bar-chart-line-fill me-2"></i>Reportes Gráficos</h2>
+    </div>
+
+    @if (analisis == null || analisis.BGConceptos == null || !analisis.BGConceptos.Any())
+    {
+        <div class="alert alert-warning" role="alert">
+            <h4 class="alert-heading">No hay datos cargados</h4>
+            <p>Por favor, carga un archivo Excel o CSV primero para generar los reportes.</p>
+            <hr>
+            <button class="btn btn-primary" @onclick='() => NavManager.NavigateTo("/upload")'>Ir a Cargar Archivo</button>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="m-0">Filtros de Visualización</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Año a analizar:</label>
+                            <select class="form-select" @onchange="OnYearChanged">
+                                @foreach (var year in YearsDisponibles)
+                                {
+                                    <option value="@year" selected="@(year == SelectedYear)">@year</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Categoría:</label>
+                            <select class="form-select" @onchange="OnCategoryChanged">
+                                <option value="AC">Activos Circulantes</option>
+                                <option value="ANC">Activos No Circulantes</option>
+                                <option value="PC">Pasivos Circulantes</option>
+                                <option value="PNC">Pasivos No Circulantes</option>
+                                <option value="CAP">Capital / Patrimonio</option>
+                            </select>
+                        </div>
+
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input" type="checkbox" id="agruparSwitch" checked="@AgruparDisponibles" @onchange="OnGroupChanged">
+                            <label class="form-check-label" for="agruparSwitch">Agrupar Disponibles (Caja/Bancos)</label>
+                        </div>
+
+                        <div class="mt-4 text-muted small">
+                            <p><i class="bi bi-info-circle"></i> Seleccione una categoría para ver la composición detallada de sus cuentas.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-info">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted">Total Seleccionado (@SelectedYear)</h6>
+                        <h3 class="text-info fw-bold">@TotalCategoria.ToString("C2")</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="m-0 text-primary">@TituloGrafico</h5>
+                    </div>
+                    <div class="card-body d-flex justify-content-center align-items-center" style="position: relative; height: 60vh; width: 100%;">
+                        <canvas id="financialChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<script>
+    window.renderFinancialChart = (labels, dataValues, chartLabel, colorType) => {
+        const ctx = document.getElementById('financialChart');
+
+        if (window.myFinancialChart) {
+            window.myFinancialChart.destroy();
+        }
+
+        let bgColors = [];
+        let borderColors = [];
+
+        // Asignación de colores según tipo
+        if(colorType === 'activos') {
+            bgColors = dataValues.map(() => 'rgba(75, 192, 192, 0.6)'); // Verde
+            borderColors = dataValues.map(() => 'rgba(75, 192, 192, 1)');
+        } else if (colorType === 'pasivos') {
+            bgColors = dataValues.map(() => 'rgba(255, 99, 132, 0.6)'); // Rojo
+            borderColors = dataValues.map(() => 'rgba(255, 99, 132, 1)');
+        } else {
+            bgColors = dataValues.map(() => 'rgba(54, 162, 235, 0.6)'); // Azul (Capital)
+            borderColors = dataValues.map(() => 'rgba(54, 162, 235, 1)');
+        }
+
+        window.myFinancialChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: chartLabel,
+                    data: dataValues,
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+
+@code {
+    private AnalisisFinanciero? analisis;
+    private List<int> YearsDisponibles = new();
+    private int SelectedYear;
+    private string SelectedCategory = "AC";
+    private bool AgruparDisponibles = true;
+
+    private string TituloGrafico = "Reporte Financiero";
+    private decimal TotalCategoria = 0;
+
+    protected override void OnInitialized()
+    {
+        analisis = UserState.AnalisisRealizado;
+
+        // Validamos usando la nueva propiedad BGConceptos
+        if (analisis != null && analisis.BGConceptos != null && analisis.BGConceptos.Any())
+        {
+            YearsDisponibles = analisis.BGConceptos
+                .Select(x => x.Anio)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+
+            if (YearsDisponibles.Any())
+            {
+                SelectedYear = YearsDisponibles.Last();
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (analisis != null && YearsDisponibles.Any())
+        {
+            await ActualizarGrafico();
+        }
+    }
+
+    private async Task OnYearChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int year))
+        {
+            SelectedYear = year;
+            await ActualizarGrafico();
+        }
+    }
+
+    private async Task OnCategoryChanged(ChangeEventArgs e)
+    {
+        SelectedCategory = e.Value?.ToString() ?? "AC";
+        await ActualizarGrafico();
+    }
+
+    private async Task OnGroupChanged(ChangeEventArgs e)
+    {
+        AgruparDisponibles = (bool)(e.Value ?? true);
+        await ActualizarGrafico();
+    }
+
+    private async Task ActualizarGrafico()
+    {
+        if (analisis?.BGConceptos == null) return;
+
+        // 1. Filtrar por año usando BGConceptos
+        var datosDelAnio = analisis.BGConceptos.Where(b => b.Anio == SelectedYear).ToList();
+
+        // 2. Filtrar por categoría
+        var datosCategoria = ObtenerDatosPorCategoria(datosDelAnio, SelectedCategory);
+
+        // 3. Procesar
+        var (labels, values) = ProcesarDatosParaGrafico(datosCategoria);
+
+        // 4. Configurar Título y Colores
+        string colorType = SelectedCategory.Contains("A") ? "activos" : (SelectedCategory.Contains("P") && !SelectedCategory.Contains("CAP") ? "pasivos" : "capital");
+        TituloGrafico = ObtenerTituloCategoria(SelectedCategory) + $" ({SelectedYear})";
+
+        TotalCategoria = values.Sum();
+
+        // 5. Renderizar
+        await JSRuntime.InvokeVoidAsync("renderFinancialChart", labels, values, "Monto (NIO)", colorType);
+    }
+
+    private List<BGConcepto> ObtenerDatosPorCategoria(List<BGConcepto> datosBase, string categoria)
+    {
+        var resultados = new List<BGConcepto>();
+
+        switch (categoria)
+        {
+            case "AC": // Activo Circulante
+                resultados = datosBase.Where(c => c.Tipo == "ACTIVO" && EsCirculante(c.Concepto)).ToList();
+                break;
+            case "ANC": // Activo No Circulante
+                resultados = datosBase.Where(c => c.Tipo == "ACTIVO" && !EsCirculante(c.Concepto)).ToList();
+                break;
+            case "PC": // Pasivo Circulante
+                resultados = datosBase.Where(c => c.Tipo == "PASIVO" && EsCortoPlazo(c.Concepto)).ToList();
+                break;
+            case "PNC": // Pasivo No Circulante
+                resultados = datosBase.Where(c => c.Tipo == "PASIVO" && !EsCortoPlazo(c.Concepto)).ToList();
+                break;
+            case "CAP": // Capital
+                resultados = datosBase.Where(c => c.Tipo == "CAPITAL").ToList();
+                break;
+        }
+
+        return resultados;
+    }
+
+    private (string[] labels, decimal[] values) ProcesarDatosParaGrafico(List<BGConcepto> datos)
+    {
+        var listaFinal = new List<(string Label, decimal Value)>();
+        decimal acumuladoDisponible = 0;
+        bool encontroDisponible = false;
+
+        foreach (var item in datos)
+        {
+            bool esDisponible = item.Concepto.ToLower().Contains("caja") ||
+                                item.Concepto.ToLower().Contains("banco") ||
+                                item.Concepto.ToLower().Contains("efectivo");
+
+            if (AgruparDisponibles && esDisponible)
+            {
+                acumuladoDisponible += item.Valor;
+                encontroDisponible = true;
+            }
+            else
+            {
+                if (item.Valor != 0)
+                {
+                    listaFinal.Add((item.Concepto, item.Valor));
+                }
+            }
+        }
+
+        if (AgruparDisponibles && encontroDisponible)
+        {
+            listaFinal.Insert(0, ("Activos Disponibles (Caja/Bancos)", acumuladoDisponible));
+        }
+
+        return (listaFinal.Select(x => x.Label).ToArray(), listaFinal.Select(x => x.Value).ToArray());
+    }
+
+    private bool EsCirculante(string nombre)
+    {
+        var n = nombre.ToLower();
+        return !n.Contains("fijo") && !n.Contains("edificio") && !n.Contains("terreno") &&
+               !n.Contains("equipo") && !n.Contains("largo plazo") && !n.Contains("depreciacion") &&
+               !n.Contains("total");
+    }
+
+    private bool EsCortoPlazo(string nombre)
+    {
+        var n = nombre.ToLower();
+        return !n.Contains("largo plazo") && !n.Contains("hipotecar") && !n.Contains("bonos") && !n.Contains("total");
+    }
+
+    private string ObtenerTituloCategoria(string cat)
+    {
+        return cat switch
+        {
+            "AC" => "Activos Circulantes",
+            "ANC" => "Activos No Circulantes",
+            "PC" => "Pasivos a Corto Plazo",
+            "PNC" => "Pasivos a Largo Plazo",
+            "CAP" => "Capital Contable",
+            _ => "Reporte"
+        };
+    }
+}

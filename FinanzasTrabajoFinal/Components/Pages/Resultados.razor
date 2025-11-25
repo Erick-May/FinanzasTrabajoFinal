@@ -8,9 +8,12 @@
 @using System.Globalization
 @using System.Data
 @using Microsoft.AspNetCore.WebUtilities
+@using FinanzasTrabajoFinal.Data
 
 @inject IDbContextFactory<FinanzasContext> DbFactory
 @inject NavigationManager NavigationManager
+
+@inject UserStateService UserStateService
 
 <PageTitle>Resultados del Análisis</PageTitle>
 
@@ -533,7 +536,10 @@ else
 
             await using var db = await DbFactory.CreateDbContextAsync();
 
+            // === CAMBIO 1: Agregamos .Include(a => a.BGConceptos) ===
+            // Esto es VITAL para que los gráficos tengan datos que mostrar
             analisis = await db.AnalisisFinancieros
+                .Include(a => a.BGConceptos)
                 .FirstOrDefaultAsync(a => a.IdAnalisis == IdAnalisis);
 
             if (analisis == null)
@@ -541,6 +547,10 @@ else
                 isLoading = false;
                 return;
             }
+
+            // === CAMBIO 2: LA LÍNEA MÁGICA ===
+            // Aquí guardamos el análisis para que la página de Reportes pueda usarlo
+            UserStateService.SetAnalisis(analisis);
 
             // 1. Cargar Años (Verticales o CNT)
             var aniosVertical = await db.ResultadoVerticales

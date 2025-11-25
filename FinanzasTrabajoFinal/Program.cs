@@ -1,6 +1,7 @@
 using FinanzasTrabajoFinal.Components;
 using FinanzasTrabajoFinal.Service;
 using Microsoft.EntityFrameworkCore; // <-- Asegúrate que esté este 'using'
+using FinanzasTrabajoFinal.Data;
 
 // 1. Registra esto al inicio
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
