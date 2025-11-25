@@ -66,7 +66,7 @@
                 <div class="card shadow-sm border-info">
                     <div class="card-body text-center">
                         <h6 class="text-muted">Total Seleccionado (@SelectedYear)</h6>
-                        <h3 class="text-info fw-bold">@TotalCategoria.ToString("C2")</h3>
+                        <h3 class="text-info fw-bold">C$ @TotalCategoria.ToString("N2")</h3>
                     </div>
                 </div>
             </div>
@@ -76,7 +76,7 @@
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h5 class="m-0 text-primary">@TituloGrafico</h5>
                     </div>
-                    <div class="card-body p-0" style="position: relative; height: 65vh; width: 100%; overflow: hidden;">
+                    <div class="card-body p-0 d-flex align-items-center justify-content-center" style="height: 65vh; overflow: hidden;">
                         @if (DatosVacios)
                         {
                             <div class="text-center text-muted h-100 d-flex flex-column justify-content-center align-items-center">
@@ -86,7 +86,7 @@
                         }
                         else
                         {
-                            <div style="padding: 20px; height: 100%; width: 100%;">
+                            <div class="chart-container" style="position: relative; height: 100%; width: 95%;">
                                 <canvas id="financialChart"></canvas>
                             </div>
                         }
@@ -136,20 +136,20 @@
                 responsive: true,
                 maintainAspectRatio: false,
 
-                // === ARREGLO 2: ESTABILIDAD TOTAL ===
-                // 'events': Define qué escucha la gráfica.
-                // Quitamos 'mousemove' y 'hover'. Solo reacciona al CLICK (o toque).
-                events: ['click', 'touchstart', 'touchmove'],
-
+                // === CONFIGURACIÓN SOLIDA ===
                 animation: false,
-                hover: { animationDuration: 0 },
-                responsiveAnimationDuration: 0,
 
+                // Esto asegura que la interacción sea "pegajosa" a la columna entera
                 interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
+                    mode: 'index',
+                    intersect: false,
+                    axis: 'x'
                 },
+
+                hover: {
+                    animationDuration: 0 // Cero retraso
+                },
+
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -217,11 +217,17 @@
         }
     }
 
+    // === ARREGLO IMPORTANTE AQUÍ ===
+    // Solo actualizamos la gráfica SI es la primera vez que se renderiza.
+    // Esto EVITA el bucle infinito de recargas.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (analisis != null && YearsDisponibles.Any())
+        if (firstRender) // <--- ESTE IF SALVA EL DÍA
         {
-            await ActualizarGrafico();
+            if (analisis != null && YearsDisponibles.Any())
+            {
+                await ActualizarGrafico();
+            }
         }
     }
 
@@ -263,10 +269,12 @@
 
         if (!DatosVacios)
         {
+            // Renderizamos la gráfica
             await Task.Delay(50);
             await JSRuntime.InvokeVoidAsync("renderFinancialChart", labels, values, "Monto (NIO)", colorType);
         }
 
+        // Notificamos el cambio. Como ahora controlamos el bucle en OnAfterRender, esto es seguro.
         StateHasChanged();
     }
 
