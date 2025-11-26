@@ -6,7 +6,7 @@
 <nav class="navbar navbar-expand-lg fb-navbar container-fluid">
 
     <a class="navbar-brand d-flex align-items-center gap-2" href="/">
-        <span class="brand-logo">FN</span>
+        <img src="images/finovo-logo.jpg" alt="FINOVO Logo" class="brand-logo-img" />
         <span class="brand-text">FINOVO</span>
     </a>
 
@@ -97,17 +97,13 @@
             text-decoration: none;
         }
 
-    .brand-logo {
-        display: inline-grid;
-        place-items: center;
-        width: 36px;
-        height: 36px;
-        border-radius: 6px;
-        background: #fff;
-        color: #0b2540;
-        font-weight: 700;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    .brand-logo-img {
+        height: 40px; /* Ajusta este tamaño según necesites */
+        width: auto; /* Mantiene la proporción */
+        object-fit: contain;
+        background-color: white; 
+        border-radius: 6px; 
+        padding: 2px; 
     }
 
     .brand-text {

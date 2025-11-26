@@ -16,7 +16,6 @@
 @inject IDbContextFactory<FinanzasContext> DbFactory
 @inject NavigationManager NavigationManager
 @inject UserStateService UserStateService
-
 @inject FinanzasTrabajoFinal.Service.GeminiService ServicioIA
 
 <PageTitle>Resultados del Análisis</PageTitle>
@@ -83,79 +82,37 @@ else
         </div>
 
         <ul class="nav nav-tabs" style="display: none;">
-            <li class="nav-item">
-                <button class="@GetButtonClass("vertical-bg")" @onclick="@(() => SetActiveTab("vertical-bg"))" type="button">Vertical (BG)</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetButtonClass("vertical-er")" @onclick="@(() => SetActiveTab("vertical-er"))" type="button">Vertical (ER)</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetButtonClass("horizontal-bg")" @onclick="@(() => SetActiveTab("horizontal-bg"))" type="button">Horizontal (BG)</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetButtonClass("cnt")" @onclick="@(() => SetActiveTab("cnt"))" type="button">CNT y CNO</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetButtonClass("eoaf")" @onclick="@(() => SetActiveTab("eoaf"))" type="button">Origen y Aplicación</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetButtonClass("razones")" @onclick="@(() => SetActiveTab("razones"))" type="button">Razones Financieras</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetButtonClass("flujo-efectivo")" @onclick="@(() => SetActiveTab("flujo-efectivo"))" type="button">Flujo de Efectivo</button>
-            </li>
-            <li class="nav-item">
-                <button class="@GetButtonClass("dupont")" @onclick="@(() => SetActiveTab("dupont"))" type="button">Sistema DuPont</button>
-            </li>
+            <li class="nav-item"><button class="@GetButtonClass("vertical-bg")" @onclick="@(() => SetActiveTab("vertical-bg"))" type="button">Vertical (BG)</button></li>
+            <li class="nav-item"><button class="@GetButtonClass("vertical-er")" @onclick="@(() => SetActiveTab("vertical-er"))" type="button">Vertical (ER)</button></li>
+            <li class="nav-item"><button class="@GetButtonClass("horizontal-bg")" @onclick="@(() => SetActiveTab("horizontal-bg"))" type="button">Horizontal (BG)</button></li>
+            <li class="nav-item"><button class="@GetButtonClass("cnt")" @onclick="@(() => SetActiveTab("cnt"))" type="button">CNT y CNO</button></li>
+            <li class="nav-item"><button class="@GetButtonClass("eoaf")" @onclick="@(() => SetActiveTab("eoaf"))" type="button">Origen y Aplicación</button></li>
+            <li class="nav-item"><button class="@GetButtonClass("razones")" @onclick="@(() => SetActiveTab("razones"))" type="button">Razones Financieras</button></li>
+            <li class="nav-item"><button class="@GetButtonClass("flujo-efectivo")" @onclick="@(() => SetActiveTab("flujo-efectivo"))" type="button">Flujo de Efectivo</button></li>
+            <li class="nav-item"><button class="@GetButtonClass("dupont")" @onclick="@(() => SetActiveTab("dupont"))" type="button">Sistema DuPont</button></li>
         </ul>
 
         <div class="tab-content">
-
             <div class="@GetPaneClass("vertical-bg")" style="@GetPaneStyle("vertical-bg")">
-                <TablaResultados Titulo="Análisis Vertical - Balance General"
-                                 Anios="anios"
-                                 Resultados="resultadosVerticalesBG"
-                                 EsPorcentaje="true" />
+                <TablaResultados Titulo="Análisis Vertical - Balance General" Anios="anios" Resultados="resultadosVerticalesBG" EsPorcentaje="true" />
             </div>
-
             <div class="@GetPaneClass("vertical-er")" style="@GetPaneStyle("vertical-er")">
-                <TablaResultados Titulo="Análisis Vertical - Estado de Resultados"
-                                 Anios="anios"
-                                 Resultados="resultadosVerticalesER"
-                                 EsPorcentaje="true" />
+                <TablaResultados Titulo="Análisis Vertical - Estado de Resultados" Anios="anios" Resultados="resultadosVerticalesER" EsPorcentaje="true" />
             </div>
-
             <div class="@GetPaneClass("horizontal-bg")" style="@GetPaneStyle("horizontal-bg")">
-                <TablaHorizontal Titulo="Análisis Horizontal - Balance General"
-                                 Periodo="@($"{anioAnterior} - {anioActual}")"
-                                 Resultados="resultadosHorizontalesBG" />
+                <TablaHorizontal Titulo="Análisis Horizontal - Balance General" Periodo="@($"{anioAnterior} - {anioActual}")" Resultados="resultadosHorizontalesBG" />
             </div>
 
             <div class="@GetPaneClass("cnt") p-3" style="@GetPaneStyle("cnt")">
-
                 <h4 class="mt-2">Capital Neto de Trabajo (CNT) y Operativo (CNO)</h4>
-
                 <p class="mb-1"><b>CNT:</b> (Total Activo Circulante - Total Pasivo Circulante)</p>
                 <p><b>CNO:</b> (Cuentas por Cobrar + Inventarios) - (Cuentas por Pagar - Documentos por Pagar)</p>
-
                 <table class="table table-sm table-bordered" style="max-width: 600px;">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Año</th>
-                            <th class="text-end">CNT (C$)</th>
-                            <th class="text-end">CNO (C$)</th>
-                        </tr>
-                    </thead>
+                    <thead class="table-light"><tr><th>Año</th><th class="text-end">CNT (C$)</th><th class="text-end">CNO (C$)</th></tr></thead>
                     <tbody>
-                        @* Usamos la variable 'capitalesNetos' que ya se carga en el @code *@
                         @foreach (var item in capitalesNetos.OrderBy(r => r.Anio))
                         {
-                            <tr>
-                                <td>@item.Anio</td>
-                                <td class="text-end">@item.CNT.ToString("N2")</td>
-
-                                <td class="text-end">@item.CNO?.ToString("N2")</td>
-                            </tr>
+                            <tr><td>@item.Anio</td><td class="text-end">@item.CNT.ToString("N2")</td><td class="text-end">@item.CNO?.ToString("N2")</td></tr>
                         }
                     </tbody>
                 </table>
@@ -163,170 +120,89 @@ else
 
             <div class="@GetPaneClass("eoaf") p-3" style="@GetPaneStyle("eoaf")">
                 <h4 class="mt-2">Estado de Origen y Aplicación de Fondos (EOAF)</h4>
-
                 <div class="row">
                     <div class="col-md-6">
                         <table class="table table-sm table-striped">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Orígenes de Fondos</th>
-                                    <th class="text-end">Valor (C$)</th>
-                                </tr>
-                            </thead>
+                            <thead class="table-light"><tr><th>Orígenes de Fondos</th><th class="text-end">Valor (C$)</th></tr></thead>
                             <tbody>
                                 @foreach (var item in origenes)
                                 {
-                                    <tr>
-                                        <td>@item.Concepto</td>
-                                        <td class="text-end">@item.Valor.ToString("N2")</td>
-                                    </tr>
+                                    <tr><td>@item.Concepto</td><td class="text-end">@item.Valor.ToString("N2")</td></tr>
                                 }
                             </tbody>
-                            <tfoot class="table-light">
-                                <tr>
-                                    <td><strong>Total Orígenes</strong></td>
-                                    <td class="text-end"><strong>@totalOrigenes.ToString("N2")</strong></td>
-                                </tr>
-                            </tfoot>
+                            <tfoot class="table-light"><tr><td><strong>Total Orígenes</strong></td><td class="text-end"><strong>@totalOrigenes.ToString("N2")</strong></td></tr></tfoot>
                         </table>
                     </div>
-
                     <div class="col-md-6">
                         <table class="table table-sm table-striped">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Aplicaciones de Fondos</th>
-                                    <th class="text-end">Valor (C$)</th>
-                                </tr>
-                            </thead>
+                            <thead class="table-light"><tr><th>Aplicaciones de Fondos</th><th class="text-end">Valor (C$)</th></tr></thead>
                             <tbody>
                                 @foreach (var item in aplicaciones)
                                 {
-                                    <tr>
-                                        <td>@item.Concepto</td>
-                                        <td class="text-end">@item.Valor.ToString("N2")</td>
-                                    </tr>
+                                    <tr><td>@item.Concepto</td><td class="text-end">@item.Valor.ToString("N2")</td></tr>
                                 }
                             </tbody>
-                            <tfoot class="table-light">
-                                <tr>
-                                    <td><strong>Total Aplicaciones</strong></td>
-                                    <td class="text-end"><strong>@totalAplicaciones.ToString("N2")</strong></td>
-                                </tr>
-                            </tfoot>
+                            <tfoot class="table-light"><tr><td><strong>Total Aplicaciones</strong></td><td class="text-end"><strong>@totalAplicaciones.ToString("N2")</strong></td></tr></tfoot>
                         </table>
                     </div>
                 </div>
             </div>
 
             <div class="@GetPaneClass("razones") p-3" style="@GetPaneStyle("razones")">
-
                 @if (!aniosRazones.Any())
                 {
-                    <div class="alert alert-warning mt-3">No hay datos suficientes (BG y ER del mismo año) para calcular las razones financieras.</div>
+                    <div class="alert alert-warning mt-3">Sin datos suficientes.</div>
                 }
                 else
                 {
-                    <TablaResultados Titulo="Razones de Liquidez"
-                                     Anios="aniosRazones"
-                                     Resultados="razonesLiquidez"
-                                     EsPorcentaje="false" />
-
-                    <TablaResultados Titulo="Razones de Actividad"
-                                     Anios="aniosRazones"
-                                     Resultados="razonesActividad"
-                                     EsPorcentaje="false" />
-
-                    <TablaResultados Titulo="Razones de Endeudamiento"
-                                     Anios="aniosRazones"
-                                     Resultados="razonesEndeudamiento"
-                                     EsPorcentaje="false" />
-
-                    <TablaResultados Titulo="Razones de Rentabilidad"
-                                     Anios="aniosRazones"
-                                     Resultados="razonesRentabilidad"
-                                     EsPorcentaje="true" />
+                    <TablaResultados Titulo="Razones de Liquidez" Anios="aniosRazones" Resultados="razonesLiquidez" EsPorcentaje="false" />
+                    <TablaResultados Titulo="Razones de Actividad" Anios="aniosRazones" Resultados="razonesActividad" EsPorcentaje="false" />
+                    <TablaResultados Titulo="Razones de Endeudamiento" Anios="aniosRazones" Resultados="razonesEndeudamiento" EsPorcentaje="false" />
+                    <TablaResultados Titulo="Razones de Rentabilidad" Anios="aniosRazones" Resultados="razonesRentabilidad" EsPorcentaje="true" />
                 }
             </div>
 
             <div class="@GetPaneClass("flujo-efectivo") p-3" style="@GetPaneStyle("flujo-efectivo")">
                 <h4 class="mt-2">Estado de Flujo de Efectivo (Método Indirecto)</h4>
-
                 @if (!flujoOperacion.Any())
                 {
-                    <div class="alert alert-warning mt-3">No hay datos suficientes (se requieren 2 años) para calcular el Flujo de Efectivo.</div>
+                    <div class="alert alert-warning mt-3">Sin datos suficientes.</div>
                 }
                 else
                 {
                     <div class="table-responsive" style="max-width: 800px;">
                         <table class="table table-sm table-striped">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Actividades de Operación</th>
-                                    <th class="text-end">Valor (C$)</th>
-                                </tr>
-                            </thead>
+                            <thead class="table-light"><tr><th>Actividades de Operación</th><th class="text-end">Valor (C$)</th></tr></thead>
                             <tbody>
                                 @foreach (var item in flujoOperacion.Where(f => !f.Concepto.StartsWith("Flujos netos")))
                                 {
-                                    <tr>
-                                        <td style="padding-left: 2rem;">@item.Concepto</td>
-                                        <td class="text-end">@item.Valor.ToString("N2")</td>
-                                    </tr>
+                                    <tr><td style="padding-left: 2rem;">@item.Concepto</td><td class="text-end">@item.Valor.ToString("N2")</td></tr>
                                 }
-                                <tr class="table-light">
-                                    <td><strong>@flujoOperacion.Last().Concepto</strong></td>
-                                    <td class="text-end"><strong>@flujoOperacion.Last().Valor.ToString("N2")</strong></td>
-                                </tr>
+                                <tr class="table-light"><td><strong>@flujoOperacion.Last().Concepto</strong></td><td class="text-end"><strong>@flujoOperacion.Last().Valor.ToString("N2")</strong></td></tr>
                             </tbody>
 
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Actividades de Inversión</th>
-                                    <th class="text-end">Valor (C$)</th>
-                                </tr>
-                            </thead>
+                            <thead class="table-light"><tr><th>Actividades de Inversión</th><th class="text-end">Valor (C$)</th></tr></thead>
                             <tbody>
                                 @foreach (var item in flujoInversion.Where(f => !f.Concepto.StartsWith("Flujos netos")))
                                 {
-                                    <tr>
-                                        <td style="padding-left: 2rem;">@item.Concepto</td>
-                                        <td class="text-end">@item.Valor.ToString("N2")</td>
-                                    </tr>
+                                    <tr><td style="padding-left: 2rem;">@item.Concepto</td><td class="text-end">@item.Valor.ToString("N2")</td></tr>
                                 }
-                                <tr class="table-light">
-                                    <td><strong>@flujoInversion.Last().Concepto</strong></td>
-                                    <td class="text-end"><strong>@flujoInversion.Last().Valor.ToString("N2")</strong></td>
-                                </tr>
+                                <tr class="table-light"><td><strong>@flujoInversion.Last().Concepto</strong></td><td class="text-end"><strong>@flujoInversion.Last().Valor.ToString("N2")</strong></td></tr>
                             </tbody>
 
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Actividades de Financiación</th>
-                                    <th class="text-end">Valor (C$)</th>
-                                </tr>
-                            </thead>
+                            <thead class="table-light"><tr><th>Actividades de Financiación</th><th class="text-end">Valor (C$)</th></tr></thead>
                             <tbody>
                                 @foreach (var item in flujoFinanciacion.Where(f => !f.Concepto.StartsWith("Flujos netos")))
                                 {
-                                    <tr>
-                                        <td style="padding-left: 2rem;">@item.Concepto</td>
-                                        <td class="text-end">@item.Valor.ToString("N2")</td>
-                                    </tr>
+                                    <tr><td style="padding-left: 2rem;">@item.Concepto</td><td class="text-end">@item.Valor.ToString("N2")</td></tr>
                                 }
-                                <tr class="table-light">
-                                    <td><strong>@flujoFinanciacion.Last().Concepto</strong></td>
-                                    <td class="text-end"><strong>@flujoFinanciacion.Last().Valor.ToString("N2")</strong></td>
-                                </tr>
+                                <tr class="table-light"><td><strong>@flujoFinanciacion.Last().Concepto</strong></td><td class="text-end"><strong>@flujoFinanciacion.Last().Valor.ToString("N2")</strong></td></tr>
                             </tbody>
 
                             <tfoot class="table-secondary">
                                 @foreach (var item in flujoResumen)
                                 {
-                                    <tr style="border-top: 2px solid #555;">
-                                        <td><strong>@item.Concepto</strong></td>
-                                        <td class="text-end"><strong>@item.Valor.ToString("N2")</strong></td>
-                                    </tr>
+                                    <tr style="border-top: 2px solid #555;"><td><strong>@item.Concepto</strong></td><td class="text-end"><strong>@item.Valor.ToString("N2")</strong></td></tr>
                                 }
                             </tfoot>
                         </table>
@@ -336,10 +212,9 @@ else
 
             <div class="@GetPaneClass("dupont") p-3" style="@GetPaneStyle("dupont")">
                 <h4 class="mt-2">Análisis DuPont</h4>
-
                 @if (!listaDuPont.Any())
                 {
-                    <div class="alert alert-warning mt-3">No hay datos suficientes (BG y ER del mismo año) para calcular el Sistema DuPont.</div>
+                    <div class="alert alert-warning mt-3">Sin datos suficientes.</div>
                 }
                 else
                 {
@@ -347,107 +222,113 @@ else
                         <table class="table table-striped table-hover table-sm">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Concepto</th>
-                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
-                                    {
-                                        <th class="text-end">@anio</th>
-                                    }
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Margen de Utilidad Neta</td>
-                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
-                                    {
-                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.MargenUtilidad ?? 0;
-                                        <td class="text-end">@valor.ToString("P2")</td>
-                                    }
-                                </tr>
-                                <tr>
-                                    <td>Rotación del Activo</td>
-                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
-                                    {
-                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.RotacionActivo ?? 0;
-                                        <td class="text-end">@valor.ToString("N2")</td>
-                                    }
-                                </tr>
-                                <tr>
-                                    <td>Multiplicador de Apalancamiento</td>
-                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
-                                    {
-                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.Apalancamiento ?? 0;
-                                        <td class="text-end">@valor.ToString("N2")</td>
-                                    }
-                                </tr>
-                                <tr class="table-light">
-                                    <td><strong>ROA (Return on Assets)</strong></td>
-                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
-                                    {
-                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.ROA ?? 0;
-                                        <td class="text-end"><strong>@valor.ToString("P2")</strong></td>
-                                    }
-                                </tr>
-                                <tr class="table-light">
-                                    <td><strong>ROE (Return on Equity)</strong></td>
-                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
-                                    {
-                                        var valor = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.ROE ?? 0;
-                                        <td class="text-end"><strong>@valor.ToString("P2")</strong></td>
-                                    }
-                                </tr>
-                                <tr class="table-light" style="border-top: 2px solid #555;">
-                                    <td><strong>DuPont (Margen * Rotación * Apal.)</strong></td>
-                                    @foreach (var anio in aniosRazones.OrderBy(a => a))
-                                    {
-                                        var item = listaDuPont.FirstOrDefault(d => d.Anio == anio);
-                                        var valor = (item != null) ? (item.MargenUtilidad * item.RotacionActivo * item.Apalancamiento) : 0;
-                                        <td class="text-end"><strong>@valor.ToString("P2")</strong></td>
-                                    }
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                                    <th>Concepto</th>@foreach (var anio in aniosRazones.OrderBy(a => a)) {
+                                    <th class="text-end">@anio</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Margen de Utilidad Neta</td>@foreach (var anio in aniosRazones.OrderBy(a => a)) { var val = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.MargenUtilidad ?? 0;
+                                <td class="text-end">@val.ToString("P2")</td>
+                            }
+                        </tr>
+                        <tr>
+                            <td>Rotación del Activo</td>@foreach (var anio in aniosRazones.OrderBy(a => a)) { var val = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.RotacionActivo ?? 0;
+                            <td class="text-end">@val.ToString("N2")</td>
+                                                        }
+                        </tr>
+                        <tr>
+                            <td>Apalancamiento</td>@foreach (var anio in aniosRazones.OrderBy(a => a)) { var val = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.Apalancamiento ?? 0;
+                            <td class="text-end">@val.ToString("N2")</td>
+                                                        }
+                        </tr>
+                        <tr class="table-light">
+                            <td><strong>ROA (Return on Assets)</strong></td>@foreach (var anio in aniosRazones.OrderBy(a => a)) { var val = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.ROA ?? 0;
+                            <td class="text-end"><strong>@val.ToString("P2")</strong></td>
+                                                        }
+                        </tr>
+                        <tr class="table-light">
+                            <td><strong>ROE (Return on Equity)</strong></td>@foreach (var anio in aniosRazones.OrderBy(a => a)) { var val = listaDuPont.FirstOrDefault(d => d.Anio == anio)?.ROE ?? 0;
+                            <td class="text-end"><strong>@val.ToString("P2")</strong></td>
+                                                        }
+                        </tr>
+                        <tr class="table-light" style="border-top: 2px solid #555;">
+                            <td><strong>DuPont (Margen * Rotación * Apal.)</strong></td>@foreach (var anio in aniosRazones.OrderBy(a => a)) { var item = listaDuPont.FirstOrDefault(d => d.Anio == anio); var valor = (item != null) ? (item.MargenUtilidad * item.RotacionActivo * item.Apalancamiento) : 0;
+                            <td class="text-end"><strong>@valor.ToString("P2")</strong></td>
+                                                        }
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-
+                        }
         </div>
     </div>
-
-    <div class="card shadow-sm mb-4 border-primary">
-    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h5 class="m-0"><i class="bi bi-robot me-2"></i>Asistente Financiero IA</h5>
-        <button class="btn btn-light btn-sm fw-bold text-primary" @onclick="GenerarInterpretacion" disabled="@cargandoIA">
-            @if (cargandoIA)
-            {
-                <span class="spinner-border spinner-border-sm me-2"></span> <span>Analizando...</span>
-            }
-            else
-            {
-                <span><i class="bi bi-stars me-1"></i> Interpretar Resultados</span>
-            }
-        </button>
-    </div>
-    @if (!string.IsNullOrEmpty(resultadoIA))
-    {
-        <div class="card-body bg-light">
-            <p style="white-space: pre-line;">@resultadoIA</p>
-        </div>
-    }
 </div>
 
+<div class="card shadow-sm mb-4 border-primary">
+    <div class="card-header bg-primary text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="m-0"><i class="bi bi-robot me-2"></i>Asistente Financiero IA</h5>
+
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-light btn-sm fw-bold text-primary" @onclick="InterpretarRazones" disabled="@cargandoIA">
+                    <i class="bi bi-calculator me-1"></i> Razones
+                </button>
+                <button type="button" class="btn btn-light btn-sm fw-bold text-primary ms-1" @onclick="InterpretarVerticalHorizontal" disabled="@cargandoIA">
+                    <i class="bi bi-bar-chart-steps me-1"></i> Vert/Horiz
+                </button>
+                <button type="button" class="btn btn-light btn-sm fw-bold text-primary ms-1" @onclick="InterpretarEOAFyCapital" disabled="@cargandoIA">
+                    <i class="bi bi-arrow-left-right me-1"></i> EOAF y Capital
+                </button>
+                <button type="button" class="btn btn-light btn-sm fw-bold text-primary ms-1" @onclick="InterpretarFlujo" disabled="@cargandoIA">
+                    <i class="bi bi-cash-coin me-1"></i> Flujo
+                </button>
+                <button type="button" class="btn btn-light btn-sm fw-bold text-primary ms-1" @onclick="InterpretarDuPont" disabled="@cargandoIA">
+                    <i class="bi bi-layers me-1"></i> DuPont
+                </button>
+                <button type="button" class="btn btn-light btn-sm fw-bold text-primary ms-1" @onclick="InterpretarTodo" disabled="@cargandoIA">
+                    <i class="bi bi-stars me-1"></i> Todo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body bg-light">
+        @if (cargandoIA)
+        {
+            <div class="d-flex align-items-center text-primary">
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                <span>Analizando datos con IA... por favor espere.</span>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(resultadoIA))
+        {
+            <div class="ia-response">
+                <h6 class="text-muted mb-3 text-uppercase fw-bold"><i class="bi bi-chat-square-text me-2"></i>@tituloInterpretacion</h6>
+                <p style="white-space: pre-line;">@resultadoIA</p>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted fst-italic mb-0 text-center p-3">
+                <i class="bi bi-hand-index-thumb me-2"></i>Selecciona una opción arriba para generar una interpretación experta.
+            </p>
+        }
+    </div>
+</div>
 }
 
 @code {
-    [Parameter]
-    public int IdAnalisis { get; set; }
+    [Parameter] public int IdAnalisis { get; set; }
 
     private AnalisisFinanciero? analisis;
     private bool isLoading = true;
     private string errorMessage = "";
+
+    // Listas de datos
     private List<int> anios = new();
     private int anioAnterior, anioActual;
-
-    // --- Listas para los cálculos ---
     private List<ResultadoCalculado> resultadosVerticalesBG = new();
     private List<ResultadoCalculado> resultadosVerticalesER = new();
     private List<ResultadoHorizontal> resultadosHorizontalesBG = new();
@@ -456,32 +337,25 @@ else
     private List<OrigenAplicacion> aplicaciones = new();
     private decimal totalOrigenes = 0m;
     private decimal totalAplicaciones = 0m;
-
-    // ++++++ NUEVAS VARIABLES PARA RAZONES ++++++
     private List<int> aniosRazones = new();
     private List<ResultadoCalculado> razonesLiquidez = new();
     private List<ResultadoCalculado> razonesActividad = new();
     private List<ResultadoCalculado> razonesEndeudamiento = new();
     private List<ResultadoCalculado> razonesRentabilidad = new();
-
-    // --- AGREGA ESTAS LÍNEAS (AQUÍ) ---
     private List<FlujoEfectivo> flujoOperacion = new();
     private List<FlujoEfectivo> flujoInversion = new();
     private List<FlujoEfectivo> flujoFinanciacion = new();
     private List<FlujoEfectivo> flujoResumen = new();
-    // --- FIN ---
-
     private List<DuPont> listaDuPont = new();
 
-    // --- CÓDIGO PARA CONTROLAR LAS PESTAÑAS (TABS) ---
-    private string activeTabId = "vertical-bg"; // ID de la pestaña activa por defecto
-    private string? lastUrl = null; // Para detectar cambios en la URL
+    // Gestión de Pestañas
+    private string activeTabId = "vertical-bg";
+    private void SetActiveTab(string tabId) { activeTabId = tabId; StateHasChanged(); }
+    private string GetButtonClass(string tabId) => tabId == activeTabId ? "nav-link active" : "nav-link";
+    private string GetPaneClass(string tabId) => tabId == activeTabId ? "tab-pane fade show active" : "tab-pane fade";
+    private string GetPaneStyle(string tabId) => tabId == activeTabId ? "display: block !important;" : "display: none !important;";
 
-    private void SetActiveTab(string tabId)
-    {
-        activeTabId = tabId;
-        StateHasChanged(); // Forzar actualización de la UI
-    }
+    private string? lastUrl = null;
 
     private void UpdateActiveTabFromUrl()
     {
@@ -492,320 +366,258 @@ else
             if (queryParams.TryGetValue("tab", out var tabValue))
             {
                 var tabId = tabValue.ToString();
-                // Validar que el tabId sea válido
                 var validTabs = new[] { "vertical-bg", "vertical-er", "horizontal-bg", "cnt", "eoaf", "razones", "flujo-efectivo", "dupont" };
-                if (validTabs.Contains(tabId))
-                {
-                    if (activeTabId != tabId)
-                    {
-                        activeTabId = tabId;
-                        StateHasChanged();
-                    }
-                }
-            }
-            else
-            {
-                // Si no hay parámetro tab en la URL, usar el default
-                if (activeTabId != "vertical-bg")
-                {
-                    activeTabId = "vertical-bg";
-                    StateHasChanged();
-                }
+                if (validTabs.Contains(tabId) && activeTabId != tabId) { activeTabId = tabId; StateHasChanged(); }
             }
         }
-        catch (Exception ex)
-        {
-            // Log para depuración
-            Console.WriteLine($"Error al actualizar tab desde URL: {ex.Message}");
-        }
+        catch { }
     }
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) { UpdateActiveTabFromUrl(); InvokeAsync(StateHasChanged); }
+    public void Dispose() { NavigationManager.LocationChanged -= OnLocationChanged; }
 
-    private string GetButtonClass(string tabId)
-    {
-        return tabId == activeTabId ? "nav-link active" : "nav-link";
-    }
-
-    private string GetPaneClass(string tabId)
-    {
-        var baseClass = "tab-pane fade";
-        if (tabId == activeTabId)
-        {
-            return $"{baseClass} show active";
-        }
-        return baseClass;
-    }
-
-    private string GetPaneStyle(string tabId)
-    {
-        // Solo mostrar el tab activo, ocultar todos los demás
-        if (tabId == activeTabId)
-        {
-            return "display: block !important;";
-        }
-        return "display: none !important;";
-    }
-    // --- FIN DEL CÓDIGO DE PESTAÑAS ---
-
-
-    // --- MÉTODO DE CARGA DE DATOS ---
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // Suscribirse a cambios de navegación
             NavigationManager.LocationChanged += OnLocationChanged;
-
-            // Leer el parámetro 'tab' de la URL si existe
             UpdateActiveTabFromUrl();
             lastUrl = NavigationManager.Uri;
 
             await using var db = await DbFactory.CreateDbContextAsync();
 
-            // === CAMBIO 1: Agregamos .Include(a => a.BGConceptos) ===
-            // Esto es VITAL para que los gráficos tengan datos que mostrar
             analisis = await db.AnalisisFinancieros
                 .Include(a => a.BGConceptos)
                 .FirstOrDefaultAsync(a => a.IdAnalisis == IdAnalisis);
 
-            if (analisis == null)
-            {
-                isLoading = false;
-                return;
-            }
-
-            // === CAMBIO 2: LA LÍNEA MÁGICA ===
-            // Aquí guardamos el análisis para que la página de Reportes pueda usarlo
+            if (analisis == null) { isLoading = false; return; }
             UserStateService.SetAnalisis(analisis);
 
-            // 1. Cargar Años (Verticales o CNT)
-            var aniosVertical = await db.ResultadoVerticales
-                .Where(r => r.IdAnalisis == IdAnalisis)
-                .Select(r => r.Anio)
-                .Distinct()
-                .OrderBy(a => a)
-                .ToListAsync();
-
+            // Carga de años
+            var aniosVertical = await db.ResultadoVerticales.Where(r => r.IdAnalisis == IdAnalisis).Select(r => r.Anio).Distinct().OrderBy(a => a).ToListAsync();
             if (!aniosVertical.Any())
             {
-                var aniosCNT = await db.CapitalesNetos
-                    .Where(r => r.IdAnalisis == IdAnalisis)
-                    .Select(r => r.Anio)
-                    .Distinct()
-                    .OrderBy(a => a)
-                    .ToListAsync();
-
-                if (!aniosCNT.Any())
-                {
-                    throw new Exception("No se encontraron datos calculados (Verticales o CNT) para este análisis.");
-                }
+                var aniosCNT = await db.CapitalesNetos.Where(r => r.IdAnalisis == IdAnalisis).Select(r => r.Anio).Distinct().OrderBy(a => a).ToListAsync();
+                if (!aniosCNT.Any()) throw new Exception("No se encontraron datos calculados.");
                 anios = aniosCNT;
             }
-            else
-            {
-                anios = aniosVertical;
-            }
+            else { anios = aniosVertical; }
 
-            // Asignar años para Horizontal
-            if (anios.Count == 1)
-            {
-                anioAnterior = anios.First();
-                anioActual = anios.First();
-            }
-            else
-            {
-                anioAnterior = anios.First();
-                anioActual = anios.Last();
-            }
+            if (anios.Count == 1) { anioAnterior = anios.First(); anioActual = anios.First(); }
+            else { anioAnterior = anios.First(); anioActual = anios.Last(); }
 
-            // --- 2. LEER LOS CÁLCULOS (Todo en la misma conexión) ---
+            // Carga de datos
+            var vertER = await db.ResultadoVerticales.Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "ER").ToListAsync();
+            resultadosVerticalesER = vertER.GroupBy(r => r.Concepto.Trim()).Select(g => new ResultadoCalculado { Concepto = g.Key, ValoresPorAnio = g.GroupBy(r => r.Anio).ToDictionary(x => x.Key, x => x.First().Porcentaje) }).ToList();
 
-            // --- 2a. ANÁLISIS VERTICAL (ER) ---
-            var verticalERData = await db.ResultadoVerticales
-                .Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "ER")
-                .ToListAsync();
+            var vertBG = await db.ResultadoVerticales.Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "BG").ToListAsync();
+            resultadosVerticalesBG = vertBG.GroupBy(r => r.Concepto.Trim()).Select(g => new ResultadoCalculado { Concepto = g.Key, ValoresPorAnio = g.GroupBy(r => r.Anio).ToDictionary(x => x.Key, x => x.First().Porcentaje) }).ToList();
 
-            resultadosVerticalesER = verticalERData
-                .GroupBy(r => r.Concepto.Trim())
-                .Select(g => new ResultadoCalculado
-                {
-                    Concepto = g.Key,
-                    ValoresPorAnio = g.GroupBy(r => r.Anio).ToDictionary(g_anio => g_anio.Key, g_anio => g_anio.First().Porcentaje)
-                }).ToList();
+            if (anios.Count >= 2) resultadosHorizontalesBG = await db.ResultadoHorizontales.Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "BG").ToListAsync();
 
-            // --- 2b. ANÁLISIS VERTICAL (BG) ---
-            var verticalBGData = await db.ResultadoVerticales
-                .Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "BG")
-                .ToListAsync();
+            capitalesNetos = await db.CapitalesNetos.Where(r => r.IdAnalisis == IdAnalisis).ToListAsync();
 
-            resultadosVerticalesBG = verticalBGData
-                .GroupBy(r => r.Concepto.Trim())
-                .Select(g => new ResultadoCalculado
-                {
-                    Concepto = g.Key,
-                    ValoresPorAnio = g.GroupBy(r => r.Anio).ToDictionary(g_anio => g_anio.Key, g_anio => g_anio.First().Porcentaje)
-                }).ToList();
-
-            // --- 2c. ANÁLISIS HORIZONTAL (BG) ---
-            if (anios.Count >= 2)
-            {
-                resultadosHorizontalesBG = await db.ResultadoHorizontales
-                    .Where(r => r.IdAnalisis == IdAnalisis && r.TipoEstado == "BG")
-                    .ToListAsync();
-            }
-
-            // --- 2d. CÁLCULO DE CNT ---
-            capitalesNetos = await db.CapitalesNetos
-                .Where(r => r.IdAnalisis == IdAnalisis)
-                .ToListAsync();
-
-            // --- 2e. CÁLCULO DE EOAF ---
-            var eoafData = await db.OrigenAplicaciones
-                .Where(r => r.IdAnalisis == IdAnalisis)
-                .ToListAsync();
-
-            origenes = eoafData.Where(e => e.Flujo == "ORIGEN").OrderBy(e => e.Concepto).ToList();
-            aplicaciones = eoafData.Where(e => e.Flujo == "APLICACION").OrderBy(e => e.Concepto).ToList();
-
+            var eoaf = await db.OrigenAplicaciones.Where(r => r.IdAnalisis == IdAnalisis).ToListAsync();
+            origenes = eoaf.Where(e => e.Flujo == "ORIGEN").OrderBy(e => e.Concepto).ToList();
+            aplicaciones = eoaf.Where(e => e.Flujo == "APLICACION").OrderBy(e => e.Concepto).ToList();
             totalOrigenes = origenes.Sum(e => e.Valor);
             totalAplicaciones = aplicaciones.Sum(e => e.Valor);
 
-            // ++++++ NUEVO CÓDIGO DE CARGA PARA RAZONES ++++++
-            // --- 2f. CÁLCULO DE RAZONES ---
-            var todasRazones = await db.RazonesFinancieras
-                .Where(r => r.IdAnalisis == IdAnalisis)
-                .ToListAsync();
-
-            if (todasRazones.Any())
+            var razones = await db.RazonesFinancieras.Where(r => r.IdAnalisis == IdAnalisis).ToListAsync();
+            if (razones.Any())
             {
-                aniosRazones = todasRazones.Select(r => r.Anio).Distinct().OrderBy(a => a).ToList();
-                var grupos = todasRazones.GroupBy(r => r.Grupo);
-
-                // Función local para rellenar las listas
-                Func<string, List<ResultadoCalculado>> GetRazonesPorGrupo = (grupo) =>
-                {
-                    return grupos.FirstOrDefault(g => g.Key == grupo)?
-                                 .GroupBy(r => r.NombreRazon)
-                                 .Select(g => new ResultadoCalculado { Concepto = g.Key, ValoresPorAnio = g.ToDictionary(r => r.Anio, r => r.ValorRazon) })
-                                 .ToList() ?? new();
-                };
-
-                razonesLiquidez = GetRazonesPorGrupo("Liquidez");
-                razonesActividad = GetRazonesPorGrupo("Actividad");
-                razonesEndeudamiento = GetRazonesPorGrupo("Endeudamiento");
-                razonesRentabilidad = GetRazonesPorGrupo("Rentabilidad");
-
+                aniosRazones = razones.Select(r => r.Anio).Distinct().OrderBy(a => a).ToList();
+                var grupos = razones.GroupBy(r => r.Grupo);
+                Func<string, List<ResultadoCalculado>> GetG = (k) => grupos.FirstOrDefault(g => g.Key == k)?.GroupBy(r => r.NombreRazon).Select(g => new ResultadoCalculado { Concepto = g.Key, ValoresPorAnio = g.ToDictionary(x => x.Anio, x => x.ValorRazon) }).ToList() ?? new();
+                razonesLiquidez = GetG("Liquidez"); razonesActividad = GetG("Actividad"); razonesEndeudamiento = GetG("Endeudamiento"); razonesRentabilidad = GetG("Rentabilidad");
                 listaDuPont = await db.DuPonts.Where(d => d.IdAnalisis == IdAnalisis).OrderBy(d => d.Anio).ToListAsync();
             }
 
-            // --- AGREGA ESTE BLOQUE ---
-            var flujosEfectivo = await db.FlujosEfectivo
-                .Where(f => f.IdAnalisis == IdAnalisis)
-                .OrderBy(f => f.Orden)
-                .ToListAsync();
-
-            flujoOperacion = flujosEfectivo.Where(f => f.TipoFlujo == "Operación").ToList();
-            flujoInversion = flujosEfectivo.Where(f => f.TipoFlujo == "Inversión").ToList();
-            flujoFinanciacion = flujosEfectivo.Where(f => f.TipoFlujo == "Financiación").ToList();
-            flujoResumen = flujosEfectivo.Where(f => f.TipoFlujo == "Resumen").ToList();
-            // --- FIN ---
+            var flujos = await db.FlujosEfectivo.Where(f => f.IdAnalisis == IdAnalisis).OrderBy(f => f.Orden).ToListAsync();
+            flujoOperacion = flujos.Where(f => f.TipoFlujo == "Operación").ToList();
+            flujoInversion = flujos.Where(f => f.TipoFlujo == "Inversión").ToList();
+            flujoFinanciacion = flujos.Where(f => f.TipoFlujo == "Financiación").ToList();
+            flujoResumen = flujos.Where(f => f.TipoFlujo == "Resumen").ToList();
         }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error al cargar los resultados: {ex.Message} | DETALLE: {ex.InnerException?.Message}";
-        }
-        finally
-        {
-            isLoading = false;
-        }
+        catch (Exception ex) { errorMessage = $"Error al cargar: {ex.Message}"; }
+        finally { isLoading = false; }
     }
 
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-        {
-            // Asegurar que el tab correcto se muestre después del primer render
-            UpdateActiveTabFromUrl();
-            StateHasChanged();
-        }
-    }
-
-    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
-    {
-        // Cuando cambia la ubicación, actualizar el tab activo
-        UpdateActiveTabFromUrl();
-        InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        NavigationManager.LocationChanged -= OnLocationChanged;
-    }
-
-   // --- VARIABLES PARA LA IA ---
+    // --- LÓGICA DE INTELIGENCIA ARTIFICIAL MODULAR (AGREGADA AL FINAL) ---
     private string resultadoIA = "";
+    private string tituloInterpretacion = "";
     private bool cargandoIA = false;
 
-    private async Task GenerarInterpretacion()
+    // 1. INTERPRETAR RAZONES (Con tus reglas)
+    private async Task InterpretarRazones()
     {
-        if (analisis == null) return;
+        tituloInterpretacion = "Interpretación de Razones Financieras";
+        var sb = new StringBuilder();
+        int ultimoAnio = anios.LastOrDefault();
 
+        sb.AppendLine("Actúa como un Analista Financiero. Interpreta estas Razones Financieras usando ESTRICTAMENTE estos criterios:");
+        sb.AppendLine("REGLAS (Promedios Industriales):");
+        sb.AppendLine("- Liquidez: Circulante (1.5-2.0), Rápida (~1.0).");
+        sb.AppendLine("- Actividad: Rot. Inventarios (5-10), Cuentas x Cobrar (6-12), Periodo Cobro (30-60 días).");
+        sb.AppendLine("- Endeudamiento: Deuda Total (40-60%), Pasivo/Capital (0.5-1.0).");
+        sb.AppendLine("- Rentabilidad: M. Bruto (20-40%), M. Operativo (10-20%), M. Neto (5-10%).");
+
+        sb.AppendLine($"\nDATOS AÑO {ultimoAnio}:");
+        AgregarRazonesASb(sb, ultimoAnio);
+
+        sb.AppendLine("\nINSTRUCCIÓN: Da un diagnóstico breve y recomendaciones.");
+        await LlamarIA(sb.ToString());
+    }
+
+    // 2. INTERPRETAR VERTICAL Y HORIZONTAL
+    private async Task InterpretarVerticalHorizontal()
+    {
+        tituloInterpretacion = "Interpretación de Análisis Vertical y Horizontal";
+        var sb = new StringBuilder();
+        int ultimoAnio = anios.LastOrDefault();
+
+        sb.AppendLine("Actúa como Analista. Interpreta el Balance y Estado de Resultados con estas reglas:");
+        sb.AppendLine("REGLAS:");
+        sb.AppendLine("- Vertical: Detecta qué cuentas dominan la estructura (Activos y Pasivos).");
+        sb.AppendLine("- Horizontal: Analiza si el crecimiento de Costos/Gastos supera al de Ingresos (Malo).");
+
+        sb.AppendLine($"\nDATOS VERTICALES (Top 5 Cuentas por peso en {ultimoAnio}):");
+        foreach (var item in resultadosVerticalesBG.OrderByDescending(x => x.ValoresPorAnio.GetValueOrDefault(ultimoAnio)).Take(5))
+            sb.AppendLine($"- {item.Concepto}: {item.ValoresPorAnio.GetValueOrDefault(ultimoAnio):N2}%");
+
+        sb.AppendLine("\nDATOS HORIZONTALES (Mayores variaciones):");
+        foreach (var item in resultadosHorizontalesBG.OrderByDescending(x => Math.Abs(x.VariacionRelativa)).Take(5))
+            sb.AppendLine($"- {item.Concepto}: Varió {item.VariacionRelativa:N2}% ({item.VariacionAbsoluta:C2})");
+
+        sb.AppendLine("\nINSTRUCCIÓN: ¿La empresa está creciendo de forma saludable o desordenada?");
+        await LlamarIA(sb.ToString());
+    }
+
+    // 3. INTERPRETAR EOAF Y CAPITAL
+    private async Task InterpretarEOAFyCapital()
+    {
+        tituloInterpretacion = "Interpretación de Origen/Aplicación y Capital de Trabajo";
+        var sb = new StringBuilder();
+
+        sb.AppendLine("Analiza el flujo de fondos y capital de trabajo.");
+        sb.AppendLine("REGLAS:");
+        sb.AppendLine("- EOAF: Evalúa si la empresa se financia más con Deuda o Capital, y si invierte en Activos (Crecimiento).");
+        sb.AppendLine("- CNT: Debe ser positivo para cubrir obligaciones.");
+        sb.AppendLine("- CNO: Mide la eficiencia operativa (Cobrar + Inventario - Pagar).");
+
+        sb.AppendLine($"\nRESUMEN EOAF:");
+        sb.AppendLine($"Total Orígenes: {totalOrigenes:C2}");
+        sb.AppendLine($"Total Aplicaciones: {totalAplicaciones:C2}");
+
+        sb.AppendLine("\nCAPITAL DE TRABAJO (Último año):");
+        var cap = capitalesNetos.LastOrDefault();
+        if (cap != null) sb.AppendLine($"CNT: {cap.CNT:C2} | CNO: {cap.CNO:C2}");
+
+        sb.AppendLine("\nINSTRUCCIÓN: ¿La empresa tiene suficiente 'colchón' financiero para operar?");
+        await LlamarIA(sb.ToString());
+    }
+
+    // 4. INTERPRETAR FLUJO DE EFECTIVO
+    private async Task InterpretarFlujo()
+    {
+        tituloInterpretacion = "Interpretación de Flujo de Efectivo";
+        var sb = new StringBuilder();
+
+        sb.AppendLine("Analiza la calidad del flujo de efectivo.");
+        sb.AppendLine("REGLAS DE ORO:");
+        sb.AppendLine("- Flujo Operativo: DEBE ser positivo. Si es negativo, la empresa no es sostenible.");
+        sb.AppendLine("- Flujo Inversión: Negativo suele ser bueno (significa compra de activos/crecimiento).");
+        sb.AppendLine("- La Rentabilidad (Utilidad) NO garantiza liquidez (Caja).");
+
+        sb.AppendLine("\nRESUMEN FLUJOS:");
+        sb.AppendLine($"Operación: {flujoOperacion.LastOrDefault()?.Valor:C2}");
+        sb.AppendLine($"Inversión: {flujoInversion.LastOrDefault()?.Valor:C2}");
+        sb.AppendLine($"Financiación: {flujoFinanciacion.LastOrDefault()?.Valor:C2}");
+
+        sb.AppendLine("\nINSTRUCCIÓN: Evalúa la sostenibilidad del flujo de caja.");
+        await LlamarIA(sb.ToString());
+    }
+
+    // 5. INTERPRETAR DUPONT (NUEVO)
+    private async Task InterpretarDuPont()
+    {
+        tituloInterpretacion = "Análisis del Sistema DuPont";
+        var sb = new StringBuilder();
+        int ultimoAnio = anios.LastOrDefault();
+
+        sb.AppendLine("Desglosa la rentabilidad (ROE) de la empresa usando el modelo DuPont.");
+        sb.AppendLine("REGLAS:");
+        sb.AppendLine("- ROE = Margen Neto (Eficiencia) x Rotación (Ventas) x Apalancamiento (Riesgo).");
+        sb.AppendLine("- Identifica cuál de los 3 factores impulsa o frena la rentabilidad.");
+
+        var dp = listaDuPont.FirstOrDefault(d => d.Anio == ultimoAnio);
+        if (dp != null)
+        {
+            sb.AppendLine($"\nDATOS DUPONT AÑO {ultimoAnio}:");
+            sb.AppendLine($"- Margen Neto: {dp.MargenUtilidad:P2}");
+            sb.AppendLine($"- Rotación Activos: {dp.RotacionActivo:N2}");
+            sb.AppendLine($"- Apalancamiento: {dp.Apalancamiento:N2}");
+            sb.AppendLine($"- ROE Resultante: {dp.ROE:P2}");
+        }
+
+        sb.AppendLine("\nINSTRUCCIÓN: ¿La empresa es rentable por ser eficiente o por endeudarse?");
+        await LlamarIA(sb.ToString());
+    }
+
+    // 6. INTERPRETAR TODO (Resumen Ejecutivo)
+    private async Task InterpretarTodo()
+    {
+        tituloInterpretacion = "Análisis Financiero Integral";
+        var sb = new StringBuilder();
+        int ultimoAnio = anios.LastOrDefault();
+
+        sb.AppendLine("Eres un Asesor Financiero Senior. Genera un resumen ejecutivo completo.");
+        sb.AppendLine("Integra: Liquidez, Rentabilidad, Endeudamiento, DuPont y Flujo de Caja.");
+
+        sb.AppendLine($"\nDATOS CLAVE AÑO {ultimoAnio}:");
+        AgregarRazonesASb(sb, ultimoAnio);
+
+        sb.AppendLine($"Flujo Operativo: {flujoOperacion.LastOrDefault()?.Valor:C2}");
+
+        var dp = listaDuPont.FirstOrDefault(d => d.Anio == ultimoAnio);
+        if (dp != null) sb.AppendLine($"ROE DuPont: {dp.ROE:P2}");
+
+        sb.AppendLine("\nINSTRUCCIÓN: Dame una conclusión general sobre la viabilidad de la empresa.");
+        await LlamarIA(sb.ToString());
+    }
+
+    private void AgregarRazonesASb(StringBuilder sb, int anio)
+    {
+        var lista = new List<ResultadoCalculado>();
+        lista.AddRange(razonesLiquidez);
+        lista.AddRange(razonesEndeudamiento);
+        lista.AddRange(razonesRentabilidad);
+
+        foreach (var r in lista)
+        {
+            if (r.ValoresPorAnio.TryGetValue(anio, out decimal val))
+                sb.AppendLine($"- {r.Concepto}: {(r.Concepto.Contains("Margen") ? val.ToString("N2") + "%" : val.ToString("N2"))}");
+        }
+    }
+
+    private async Task LlamarIA(string prompt)
+    {
         cargandoIA = true;
-        resultadoIA = "🔍 Analizando datos financieros con los estándares de la industria... esto puede tomar unos segundos.";
+        resultadoIA = "";
         StateHasChanged();
-
-        try
-        {
-            var sb = new StringBuilder(); // Ahora sí reconoce StringBuilder por el @using System.Text
-            int ultimoAnio = anios.LastOrDefault();
-
-            // 1. INSTRUCCIONES Y REGLAS (Tu documento)
-            sb.AppendLine("Actúa como un Consultor Financiero Experto.");
-            sb.AppendLine("Analiza la salud financiera de la empresa basándote ESTRICTAMENTE en estas reglas:");
-            sb.AppendLine("--------------------------------------------------");
-            sb.AppendLine("1. LIQUIDEZ: Razón Circulante (Meta 1.5-2.0), Razón Rápida (Meta ~1.0).");
-            sb.AppendLine("2. ACTIVIDAD: Rotación Inventarios (5-10 veces), Cuentas x Cobrar (6-12 veces), Periodo Cobro (30-60 días).");
-            sb.AppendLine("3. ENDEUDAMIENTO: Razón Endeudamiento (0.4-0.6), Pasivo/Capital (0.5-1.0).");
-            sb.AppendLine("4. RENTABILIDAD: Margen Bruto (20-40%), Operativo (10-20%), Neto (5-10%), ROA/ROE (5-20%).");
-            sb.AppendLine("--------------------------------------------------");
-
-            sb.AppendLine($"\nDATOS REALES EMPRESA (Año {ultimoAnio}):");
-
-            // Enviar Razones
-            var razonesUltimoAnio = new List<ResultadoCalculado>();
-            razonesUltimoAnio.AddRange(razonesLiquidez);
-            razonesUltimoAnio.AddRange(razonesActividad);
-            razonesUltimoAnio.AddRange(razonesEndeudamiento);
-            razonesUltimoAnio.AddRange(razonesRentabilidad);
-
-            foreach(var r in razonesUltimoAnio)
-            {
-                if(r.ValoresPorAnio.TryGetValue(ultimoAnio, out decimal valor))
-                {
-                    sb.AppendLine($"- {r.Concepto}: {valor:N2}");
-                }
-            }
-
-            sb.AppendLine("\nINSTRUCCIONES: Escribe un análisis narrativo, claro y profesional. Empieza con una conclusión ejecutiva.");
-
-            // 4. LLAMADA AL SERVICIO USANDO EL NUEVO NOMBRE "ServicioIA"
-            // <--- AQUÍ ESTÁ EL CAMBIO EN LA LLAMADA
-            var respuesta = await ServicioIA.AnalizarDatos(sb.ToString());
-
-            resultadoIA = respuesta;
-        }
-        catch (Exception ex)
-        {
-            resultadoIA = $"Error de análisis: {ex.Message}";
-        }
-        finally
-        {
-            cargandoIA = false;
-            StateHasChanged();
-        }
+        try { resultadoIA = await ServicioIA.AnalizarDatos(prompt); }
+        catch (Exception ex) { resultadoIA = $"Error: {ex.Message}"; }
+        finally { cargandoIA = false; StateHasChanged(); }
     }
 }
 
 <style>
+    .ia-response {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        color: #2c3e50;
+    }
+    /* Animaciones */
     .resultados-container {
         animation: fadeIn 0.6s ease-out;
     }
@@ -846,7 +658,7 @@ else
         border: 1px solid rgba(135, 206, 235, 0.3);
         border-radius: 0.5rem;
         color: #0b2540;
-        font-weight: 500;
+        weight: 500;
         font-size: 0.9rem;
         backdrop-filter: blur(5px);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
