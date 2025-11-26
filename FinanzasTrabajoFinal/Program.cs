@@ -28,6 +28,9 @@ builder.Services.AddScoped<UserStateService>();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Registramos el HttpClient y el Servicio de Gemini
+builder.Services.AddHttpClient<FinanzasTrabajoFinal.Service.GeminiService>();
+
 // --- 4. NO HAY MÁS CÓDIGO HASTA EL builder.Build() ---
 
 var app = builder.Build();
