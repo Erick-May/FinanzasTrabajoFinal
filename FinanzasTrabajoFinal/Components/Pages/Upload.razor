@@ -256,7 +256,7 @@
                 // --- Cálculo de CNO (SEGÚN TU NUEVA FÓRMULA) ---
 
                 // 1. Activo Operativo
-                decimal cuentasCobrar = GetBGVal(bgAnio, new[] { "Cuentas y Documentos Por Cobrar", "Cuentas por Cobrar" });
+                decimal cuentasCobrar = GetBGVal(bgAnio, new[] { "Cuentas y Documentos Por Cobrar", "Cuentas por Cobrar", "Clientes" });
                 decimal inventarios = GetBGVal(bgAnio, new[] { "Inventarios", "Inventario de Repuestos y Accesorios" });
 
                 // 2. Pasivo Operativo (¡Revisa estos nombres!)
@@ -371,9 +371,9 @@
                 listaRazones.Add(new RazonFinanciera { IdAnalisis = nuevoAnalisis.IdAnalisis, Anio = anio, Grupo = "Liquidez", NombreRazon = "Razón Rápida", ValorRazon = razonRapida });
 
                 // --- 2. Razones de Actividad ---
-                decimal costoVentas = GetERVal(er, new[] { "Costos", "Costo de Bienes Vendidos", "Costos de ventas de bienes y servicios" });
+                decimal costoVentas = GetERVal(er, new[] { "Costos", "Costo de Bienes Vendidos", "Costos de ventas de bienes y servicios", "Costos de Venta" });
                 decimal cuentasCobrar = GetBGVal(bg, new[] { "Cuentas y Documentos Por Cobrar", "Cuentas por Cobrar" });
-                decimal ventas = GetERVal(er, new[] { "Ingresos", "Ventas", "Ventas Netas", "Ingresos Operacionales" });
+                decimal ventas = GetERVal(er, new[] { "Ingresos", "Ventas", "Ventas Totales", "Ingresos Operacionales" });
                 decimal activosFijosNetos = GetBGVal(bg, new[] { "Activos fijos netos", "Total Activos Fijos", "Total de Activos Fijos", "Total Activo Fijo" });
                 decimal activosTotales = GetBGVal(bg, new[] { "Total Activos", "Total de Activos" });
 
