@@ -12,7 +12,7 @@ namespace FinanzasTrabajoFinal.Service
         private readonly HttpClient _httpClient;
 
         // Tu clave (La vi en tus capturas, está bien)
-        private const string ApiKey = "AIzaSy2025a";
+        private const string ApiKey = "zzz";
 
         // === EL CAMBIO FINAL ===
         // 1. Usamos 'v1beta' (Obligatorio para modelos 1.5)
