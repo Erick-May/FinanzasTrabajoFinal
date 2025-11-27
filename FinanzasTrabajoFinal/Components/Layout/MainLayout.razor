@@ -3,24 +3,67 @@
 @using FinanzasTrabajoFinal.Service
 @inject UserStateService UserStateService
 
-
 <div class="page">
     <header class="app-header" style="height:@headerHeightPx">
         <NavMenu />
     </header>
 
-    <SidebarPanel />
+    <!-- Si tienes un componente SidebarPanel, se queda aquí -->
+    <!-- <SidebarPanel /> -->
 
-    <main class="main-content main-content-with-sidebar" style="padding-top:@headerHeightPx;">
+    <main class="main-content" style="padding-top:@headerHeightPx;">
         <article class="content-container px-4">
             @Body
         </article>
     </main>
 </div>
 
-<style>
+<!-- === EL CUADRO DE SOPORTE (MODAL) === -->
+<!-- Al ponerlo aquí, flota libremente sobre toda la aplicación -->
+<div class="modal fade" id="contactModal" tabindex="-1" aria-labelledby="contactModalLabel" aria-hidden="true" style="z-index: 10000;">
+    <div class="modal-dialog modal-dialog-centered" style="z-index: 10001;">
+        <div class="modal-content border-0 shadow-lg">
+            <!-- Cabecera Verde WhatsApp -->
+            <div class="modal-header bg-whatsapp text-white border-0">
+                <h5 class="modal-title fw-bold" id="contactModalLabel">
+                    <i class="bi bi-whatsapp me-2"></i> CONTACTA A LOS DEVS
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!-- Lista de Contactos -->
+            <div class="modal-body p-0">
+                <div class="list-group list-group-flush">
+                    <a href="https://wa.me/50589912511" target="_blank" class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                        <div class="avatar-wa me-3">R</div>
+                        <div><div class="fw-bold text-dark">Developer Rodrigo</div><div class="text-muted small">+505 8991 2511</div></div>
+                        <i class="bi bi-chat-text-fill ms-auto text-success fs-4"></i>
+                    </a>
+                    <a href="https://wa.me/50582753594" target="_blank" class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                        <div class="avatar-wa me-3">J</div>
+                        <div><div class="fw-bold text-dark">Developer Jassa</div><div class="text-muted small">+505 8275 3594</div></div>
+                        <i class="bi bi-chat-text-fill ms-auto text-success fs-4"></i>
+                    </a>
+                    <a href="https://wa.me/50576911058" target="_blank" class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                        <div class="avatar-wa me-3">R</div>
+                        <div><div class="fw-bold text-dark">Developer Rommel</div><div class="text-muted small">+505 7691 1058</div></div>
+                        <i class="bi bi-chat-text-fill ms-auto text-success fs-4"></i>
+                    </a>
+                    <a href="https://wa.me/50582912327" target="_blank" class="list-group-item list-group-item-action d-flex align-items-center p-3">
+                        <div class="avatar-wa me-3">E</div>
+                        <div><div class="fw-bold text-dark">Developer Erick</div><div class="text-muted small">+505 8291 2327</div></div>
+                        <i class="bi bi-chat-text-fill ms-auto text-success fs-4"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0 justify-content-center">
+                <small class="text-muted">Horario de atención: 24/7</small>
+            </div>
+        </div>
+    </div>
+</div>
 
-    /* (CSS de MainLayout) */
+<style>
+    /* Estilos del Layout Principal */
     header.app-header {
         position: fixed;
         top: 0;
@@ -40,60 +83,27 @@
         flex-direction: column;
         background: linear-gradient(135deg, #E6F3FF 0%, #F0F8FF 50%, #FFFFFF 100%);
         position: relative;
-        transition: padding-left 0.3s ease;
     }
 
-    .main-content-with-sidebar {
-        padding-left: 280px;
+    /* Estilos del Modal WhatsApp */
+    .bg-whatsapp {
+        background-color: #075E54;
     }
 
-    .main-content::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-image: repeating-linear-gradient(45deg, transparent, transparent 120px, rgba(135, 206, 235, 0.04) 120px, rgba(135, 206, 235, 0.04) 240px), repeating-linear-gradient(-45deg, transparent, transparent 120px, rgba(176, 224, 230, 0.04) 120px, rgba(176, 224, 230, 0.04) 240px), radial-gradient(ellipse at 15% 25%, rgba(135, 206, 235, 0.12) 0%, transparent 45%), radial-gradient(ellipse at 85% 75%, rgba(176, 224, 230, 0.12) 0%, transparent 45%), radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 65%);
-        pointer-events: none;
-        z-index: 0;
-        animation: backgroundShift 20s ease-in-out infinite;
-    }
-
-    @@keyframes backgroundShift {
-        0%, 100% {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        50% {
-            opacity: 0.95;
-            transform: translateY(-10px);
-        }
-    }
-
-    .content-container {
-        flex-grow: 1;
-        overflow-y: auto;
+    .avatar-wa {
+        width: 40px;
+        height: 40px;
+        background-color: #e9ecef;
+        border-radius: 50%;
         display: flex;
-        flex-direction: column;
         align-items: center;
-        justify-content: flex-start;
-        padding: 2rem;
-        width: 100%;
-        box-sizing: border-box;
-        position: relative;
-        z-index: 1;
+        justify-content: center;
+        font-weight: bold;
+        color: #075E54;
     }
 
-    @@media (max-width:768px) {
-        header .app-header {
-            height: 48px;
-        }
-
-        .main-content-with-sidebar {
-            padding-left: 0 !important;
-        }
+    .list-group-item-action:hover {
+        background-color: #f0f2f5;
     }
 </style>
 
@@ -107,21 +117,9 @@
 
     private async void HandleUserStateChange()
     {
-        try
-        {
-            // InvokeAsync puede fallar si el componente ya no existe
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (ObjectDisposedException)
-        {
-            // Si el objeto ya se destruyó, no hacemos nada.
-            // Esto evita que el error rompa el circuito.
-        }
-        catch (Exception ex)
-        {
-            // Opcional: registrar cualquier otro error inesperado
-            Console.WriteLine($"Error en HandleUserStateChange: {ex.Message}");
-        }
+        try { await InvokeAsync(StateHasChanged); }
+        catch (ObjectDisposedException) { }
+        catch (Exception ex) { Console.WriteLine($"Error: {ex.Message}"); }
     }
 
     public void Dispose()
